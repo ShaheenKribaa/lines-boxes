@@ -1,0 +1,167 @@
+import React from 'react';
+import { socket } from '../socket';
+import { useGameStore } from '../store';
+import { SocketEvent } from '../../../shared/types';
+import { Play, Copy, Check, Users, Settings } from 'lucide-react';
+
+export const Lobby: React.FC = () => {
+    const { room, playerId } = useGameStore();
+    const [copied, setCopied] = React.useState(false);
+
+    if (!room) return null;
+
+    const isHost = room.hostId === playerId;
+    const canStart = room.players.length >= 2 && isHost;
+
+    const handleStartGame = () => {
+        socket.emit(SocketEvent.START_GAME);
+    };
+
+    const copyRoomCode = () => {
+        navigator.clipboard.writeText(room.code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="container" style={{ minHeight: '100vh', paddingTop: '4rem' }}>
+            <div className="fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+                        Game Lobby
+                    </h1>
+                    <p style={{ color: 'var(--text-secondary)' }}>
+                        Waiting for players to join...
+                    </p>
+                </div>
+
+                <div className="card" style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                        <div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                Room Code
+                            </div>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', letterSpacing: '0.1em', color: 'var(--accent-primary)' }}>
+                                {room.code}
+                            </div>
+                        </div>
+                        <button className="btn btn-secondary" onClick={copyRoomCode}>
+                            {copied ? <Check size={20} /> : <Copy size={20} />}
+                            {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                <Settings size={16} />
+                                Grid Size
+                            </div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                {room.settings.gridSize}x{room.settings.gridSize}
+                            </div>
+                        </div>
+                        <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                <Settings size={16} />
+                                Dice Sides
+                            </div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                {room.settings.diceSides}
+                            </div>
+                        </div>
+                        <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                <Users size={16} />
+                                Max Players
+                            </div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                {room.settings.maxPlayers}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card" style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Users size={24} />
+                        Players ({room.players.length}/{room.settings.maxPlayers})
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {room.players.map((player, index) => (
+                            <div
+                                key={player.id}
+                                className="slide-in"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '1rem',
+                                    background: player.id === playerId ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-tertiary)',
+                                    border: player.id === playerId ? '1px solid var(--accent-primary)' : '1px solid transparent',
+                                    borderRadius: '0.75rem',
+                                    animationDelay: `${index * 0.1}s`
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div
+                                        style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '50%',
+                                            background: 'var(--accent-gradient)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: '700',
+                                            fontSize: '1.1rem'
+                                        }}
+                                    >
+                                        {player.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: '600' }}>
+                                            {player.name} {player.id === playerId && '(You)'}
+                                        </div>
+                                        {player.isHost && (
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--accent-primary)' }}>
+                                                👑 Host
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: player.isConnected ? 'var(--success)' : 'var(--text-muted)',
+                                        animation: player.isConnected ? 'pulse 2s infinite' : 'none'
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {isHost && (
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleStartGame}
+                        disabled={!canStart}
+                        style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
+                    >
+                        <Play size={24} />
+                        {canStart ? 'Start Game' : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
+                    </button>
+                )}
+
+                {!isHost && (
+                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
+                        Waiting for host to start the game...
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};

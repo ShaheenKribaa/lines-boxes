@@ -34,7 +34,7 @@ export class DotsAndBoxesGame {
     }
 
     applyMove(playerId: PlayerId, move: any): any {
-        const players = this.getPlayerIds(); // This would need to be passed or derived
+        const players = this.state.playerIds;
         const currentPlayerId = players[this.state.currentPlayerIndex];
 
         if (playerId !== currentPlayerId) {
@@ -176,10 +176,6 @@ export class DotsAndBoxesGame {
     }
 
     private getPlayerIds(): PlayerId[] {
-        // This is a bit of a hack since we don't store player IDs directly in state
-        // In a real app, the state would probably have a `players` array
-        // Let's assume the caller will handle this or we would have it in state
-        // For now, I'll add `playerIds` to DotsAndBoxesState
-        return (this.state as any).playerIds || [];
+        return this.state.playerIds;
     }
 }
