@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
 import { useGameStore } from '../store';
 import { SocketEvent, RoomSettings } from '../../../shared/types';
@@ -8,30 +9,15 @@ export const Landing: React.FC = () => {
     const [playerName, setPlayerName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [isCreating, setIsCreating] = useState(false);
-    const { setRoom, setPlayerId, error, setError } = useGameStore();
+    const { error, setError, room } = useGameStore();
+    const navigate = useNavigate();
 
+    // Navigate to room when room is set
     useEffect(() => {
-        socket.connect();
-
-        socket.on('connect', () => {
-            setPlayerId(socket.id);
-        });
-
-        socket.on(SocketEvent.ROOM_UPDATED, (room) => {
-            setRoom(room);
-            setError(null);
-        });
-
-        socket.on(SocketEvent.ERROR, (message) => {
-            setError(message);
-        });
-
-        return () => {
-            socket.off('connect');
-            socket.off(SocketEvent.ROOM_UPDATED);
-            socket.off(SocketEvent.ERROR);
-        };
-    }, [setRoom, setPlayerId, setError]);
+        if (room) {
+            navigate(`/room/${room.code}`);
+        }
+    }, [room, navigate]);
 
     const handleCreateRoom = () => {
         if (!playerName.trim()) {
@@ -39,13 +25,16 @@ export const Landing: React.FC = () => {
             return;
         }
 
+        // Save player name to localStorage for rejoin
+        localStorage.setItem('playerName', playerName.trim());
+
         const settings: RoomSettings = {
             gridSize: 5,
             diceSides: 6,
             maxPlayers: 2
         };
 
-        socket.emit(SocketEvent.CREATE_ROOM, settings);
+        socket.emit(SocketEvent.CREATE_ROOM, { settings, name: playerName.trim() });
     };
 
     const handleJoinRoom = () => {
@@ -58,6 +47,9 @@ export const Landing: React.FC = () => {
             setError('Please enter a room code');
             return;
         }
+
+        // Save player name to localStorage for rejoin
+        localStorage.setItem('playerName', playerName.trim());
 
         socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: playerName });
     };

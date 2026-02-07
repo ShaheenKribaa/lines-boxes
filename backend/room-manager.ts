@@ -9,13 +9,13 @@ export class RoomManager {
 
     constructor(private io: Server) { }
 
-    createRoom(socket: Socket, settings: RoomSettings) {
+    createRoom(socket: Socket, data: { settings: RoomSettings; name?: string }) {
         const roomId = uuidv4();
         const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const player: Player = {
             id: socket.id,
-            name: `Player 1`,
+            name: data.name || 'Player 1',
             score: 0,
             isConnected: true,
             isHost: true
@@ -25,7 +25,7 @@ export class RoomManager {
             id: roomId,
             code: roomCode,
             hostId: socket.id,
-            settings: settings || { gridSize: 5, diceSides: 6, maxPlayers: 2 },
+            settings: data.settings || { gridSize: 5, diceSides: 6, maxPlayers: 2 },
             players: [player],
             status: 'LOBBY',
             gameData: null
@@ -35,7 +35,8 @@ export class RoomManager {
         this.playerToRoom.set(socket.id, roomId);
         socket.join(roomId);
 
-        socket.emit(SocketEvent.ROOM_UPDATED, room);
+        // Emit to the room (which currently only has this socket)
+        this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
     joinRoom(socket: Socket, { code, name }: { code: string; name: string }) {
@@ -43,6 +44,25 @@ export class RoomManager {
 
         if (!room) {
             socket.emit(SocketEvent.ERROR, 'Room not found');
+            return;
+        }
+
+        // Check if player is reconnecting (same name exists)
+        const existingPlayer = room.players.find(p => p.name === name);
+
+        if (existingPlayer) {
+            // Player is reconnecting - update their socket ID
+            const oldSocketId = existingPlayer.id;
+            existingPlayer.id = socket.id;
+            existingPlayer.isConnected = true;
+
+            // Update playerToRoom mapping
+            this.playerToRoom.delete(oldSocketId);
+            this.playerToRoom.set(socket.id, room.id);
+            socket.join(room.id);
+
+            // Notify all players in the room
+            this.io.to(room.id).emit(SocketEvent.ROOM_UPDATED, room);
             return;
         }
 
