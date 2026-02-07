@@ -5,6 +5,7 @@ import { socket } from './socket';
 import { SocketEvent } from '../../shared/types';
 import { Landing } from './components/Landing';
 import { Lobby } from './components/Lobby';
+import { ChooseFirstPlayer } from './components/ChooseFirstPlayer';
 import { GameBoard } from './components/GameBoard';
 import { GameOver } from './components/GameOver';
 import './index.css';
@@ -63,6 +64,11 @@ function RoomPage() {
     // Show game board if game is playing
     if (room.status === 'PLAYING') {
         return <GameBoard />;
+    }
+
+    // Rock Paper Scissors to decide who goes first
+    if (room.status === 'CHOOSING_FIRST') {
+        return <ChooseFirstPlayer />;
     }
 
     // Show lobby if in a room but not playing

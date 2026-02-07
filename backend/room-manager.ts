@@ -1,5 +1,6 @@
+import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, RoomId, SocketEvent, GameStatus, RoomSettings } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -143,10 +144,11 @@ export class RoomManager {
         if (!roomId) return;
 
         const room = this.rooms.get(roomId);
-        if (!room || room.status !== 'ENDED') return;
+        if (!room || (room.status !== 'ENDED' && room.status !== 'CHOOSING_FIRST')) return;
 
         room.status = 'LOBBY';
         room.gameData = null;
+        room.rpsPicks = undefined;
         room.players.forEach(p => { p.score = 0; });
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
@@ -164,13 +166,78 @@ export class RoomManager {
             return;
         }
 
-        // Initialize Dots and Boxes game
-        const game = new DotsAndBoxesGame(room.players.map(p => p.id), room.settings);
-        room.gameData = game.getState();
+        // Enter Rock Paper Scissors phase to decide who goes first
+        room.status = 'CHOOSING_FIRST';
+        room.rpsPicks = {};
+        room.gameData = null;
+
+        this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+    }
+
+    handleRpsPick(socket: Socket, choice: RpsChoice) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'CHOOSING_FIRST' || !room.rpsPicks) return;
+
+        const player = room.players.find(p => p.id === socket.id);
+        if (!player || !player.isConnected) return;
+
+        if (room.rpsPicks[socket.id]) return; // Already picked
+
+        room.rpsPicks[socket.id] = choice;
+
+        const connectedPlayers = room.players.filter(p => p.isConnected);
+        if (Object.keys(room.rpsPicks).length < connectedPlayers.length) {
+            this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+            return;
+        }
+
+        // All have picked - resolve order and start game
+        const orderedPlayerIds = this.resolveRpsOrder(room);
         room.status = 'PLAYING';
+        room.rpsPicks = undefined;
+
+        const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
+        room.gameData = game.getState();
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
         this.io.to(roomId).emit(SocketEvent.GAME_STARTED, room.gameData);
+    }
+
+    private resolveRpsOrder(room: Room): string[] {
+        const picks = room.rpsPicks!;
+        const players = room.players.filter(p => p.isConnected);
+
+        const beats: Record<RpsChoice, RpsChoice> = {
+            ROCK: 'SCISSORS',
+            PAPER: 'ROCK',
+            SCISSORS: 'PAPER'
+        };
+
+        // Score each player: how many opponents they beat
+        const scores: Record<string, number> = {};
+        for (const p of players) {
+            scores[p.id] = 0;
+            const myChoice = picks[p.id];
+            if (!myChoice) continue;
+            for (const other of players) {
+                if (other.id === p.id) continue;
+                const theirChoice = picks[other.id];
+                if (theirChoice && beats[myChoice] === theirChoice) {
+                    scores[p.id]++;
+                }
+            }
+        }
+
+        const maxScore = Math.max(...Object.values(scores));
+        const winners = players.filter(p => scores[p.id] === maxScore);
+
+        // Winner(s) go first (random among ties), then others in original order
+        const first = winners[randomInt(0, winners.length)];
+        const rest = players.filter(p => p.id !== first.id);
+        return [first.id, ...rest.map(p => p.id)];
     }
 
     handleGameMove(socket: Socket, move: any) {

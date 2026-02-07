@@ -17,7 +17,9 @@ export interface RoomSettings {
     maxPlayers: number;
 }
 
-export type GameStatus = 'LOBBY' | 'PLAYING' | 'ENDED';
+export type GameStatus = 'LOBBY' | 'CHOOSING_FIRST' | 'PLAYING' | 'ENDED';
+
+export type RpsChoice = 'ROCK' | 'PAPER' | 'SCISSORS';
 
 export interface BaseGameState {
     status: GameStatus;
@@ -52,6 +54,7 @@ export interface Room {
     players: Player[];
     status: GameStatus;
     gameData: GameState | null;
+    rpsPicks?: Partial<Record<PlayerId, RpsChoice>>; // Used during CHOOSING_FIRST
 }
 
 // Socket Events
@@ -62,6 +65,7 @@ export enum SocketEvent {
     UPDATE_ROOM_SETTINGS = 'UPDATE_ROOM_SETTINGS',
     RESET_TO_LOBBY = 'RESET_TO_LOBBY',
     START_GAME = 'START_GAME',
+    RPS_PICK = 'RPS_PICK',
     ROLL_DICE = 'ROLL_DICE',
     PLACE_LINE = 'PLACE_LINE',
     LEAVE_ROOM = 'LEAVE_ROOM',

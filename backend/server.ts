@@ -41,6 +41,10 @@ io.on('connection', (socket) => {
         roomManager.startGame(socket);
     });
 
+    socket.on(SocketEvent.RPS_PICK, (choice) => {
+        roomManager.handleRpsPick(socket, choice);
+    });
+
     socket.on(SocketEvent.ROLL_DICE, () => {
         roomManager.handleGameMove(socket, { type: SocketEvent.ROLL_DICE });
     });
