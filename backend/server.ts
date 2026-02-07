@@ -33,6 +33,10 @@ io.on('connection', (socket) => {
         roomManager.updateRoomSettings(socket, data);
     });
 
+    socket.on(SocketEvent.RESET_TO_LOBBY, () => {
+        roomManager.resetToLobby(socket);
+    });
+
     socket.on(SocketEvent.START_GAME, () => {
         roomManager.startGame(socket);
     });

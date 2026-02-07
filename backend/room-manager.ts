@@ -138,6 +138,20 @@ export class RoomManager {
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
+    resetToLobby(socket: Socket) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'ENDED') return;
+
+        room.status = 'LOBBY';
+        room.gameData = null;
+        room.players.forEach(p => { p.score = 0; });
+
+        this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+    }
+
     startGame(socket: Socket) {
         const roomId = this.playerToRoom.get(socket.id);
         if (!roomId) return;

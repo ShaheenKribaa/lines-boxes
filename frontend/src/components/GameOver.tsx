@@ -1,6 +1,8 @@
 import React from 'react';
+import { socket } from '../socket';
 import { useGameStore } from '../store';
-import { Trophy, Home } from 'lucide-react';
+import { SocketEvent } from '../../../shared/types';
+import { Trophy, RefreshCw } from 'lucide-react';
 
 export const GameOver: React.FC = () => {
     const { room, playerId } = useGameStore();
@@ -14,7 +16,7 @@ export const GameOver: React.FC = () => {
     const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
 
     const handleNewGame = () => {
-        window.location.reload();
+        socket.emit(SocketEvent.RESET_TO_LOBBY);
     };
 
     return (
@@ -73,8 +75,8 @@ export const GameOver: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className="btn btn-secondary" onClick={handleNewGame} style={{ flex: 1 }}>
-                        <Home size={20} />
+                    <button className="btn btn-primary" onClick={handleNewGame} style={{ flex: 1 }}>
+                        <RefreshCw size={20} />
                         New Game
                     </button>
                 </div>
