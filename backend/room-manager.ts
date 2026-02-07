@@ -9,12 +9,13 @@ export class RoomManager {
 
     constructor(private io: Server) { }
 
-    createRoom(socket: Socket, data: { settings: RoomSettings; name?: string }) {
+    createRoom(socket: Socket, data: { settings: RoomSettings; name?: string; clientId?: string }) {
         const roomId = uuidv4();
         const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const player: Player = {
             id: socket.id,
+            clientId: data.clientId,
             name: data.name || 'Player 1',
             score: 0,
             isConnected: true,
@@ -40,7 +41,7 @@ export class RoomManager {
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
-    joinRoom(socket: Socket, { code, name }: { code: string; name: string }) {
+    joinRoom(socket: Socket, { code, name, clientId }: { code: string; name: string; clientId?: string }) {
         const room = Array.from(this.rooms.values()).find(r => r.code === code);
 
         if (!room) {
@@ -48,14 +49,41 @@ export class RoomManager {
             return;
         }
 
-        // Check if player is reconnecting (same name exists)
-        const existingPlayer = room.players.find(p => p.name === name);
+        // Check if player is reconnecting: match by clientId first (persists across reload), then by name
+        const existingPlayer = (clientId && room.players.find(p => p.clientId === clientId))
+            || room.players.find(p => p.name === name);
 
         if (existingPlayer) {
-            // Player is reconnecting - update their socket ID
+            // Player is reconnecting - update their socket ID everywhere
             const oldSocketId = existingPlayer.id;
             existingPlayer.id = socket.id;
             existingPlayer.isConnected = true;
+
+            // Update hostId if host reconnected
+            if (room.hostId === oldSocketId) {
+                room.hostId = socket.id;
+            }
+
+            // Update gameData.playerIds so game logic recognizes the reconnected player
+            if (room.gameData && 'playerIds' in room.gameData) {
+                const playerIds = room.gameData.playerIds as string[];
+                const idx = playerIds.indexOf(oldSocketId);
+                if (idx !== -1) {
+                    playerIds[idx] = socket.id;
+                }
+            }
+
+            // Update boxes owner IDs so box colors display correctly after reconnect
+            if (room.gameData && 'board' in room.gameData && room.gameData.board?.boxes) {
+                const boxes = room.gameData.board.boxes as (string | null)[][];
+                for (const row of boxes) {
+                    for (let c = 0; c < row.length; c++) {
+                        if (row[c] === oldSocketId) {
+                            row[c] = socket.id;
+                        }
+                    }
+                }
+            }
 
             // Update playerToRoom mapping
             this.playerToRoom.delete(oldSocketId);
@@ -74,6 +102,7 @@ export class RoomManager {
         // Add new player
         const newPlayer: Player = {
             id: socket.id,
+            clientId,
             name,
             score: 0,
             isConnected: true,

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
-import { useGameStore } from './store';
+import { useGameStore, getClientId } from './store';
 import { socket } from './socket';
 import { SocketEvent } from '../../shared/types';
 import { Landing } from './components/Landing';
@@ -15,14 +15,13 @@ function RoomPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // If we have a room code in URL but no room in state, try to rejoin
+        // If we have a room code in URL but no room in state, try to rejoin (e.g. after page reload)
         if (roomCode && !room) {
-            // We'll need the player name from localStorage or prompt
             const savedName = localStorage.getItem('playerName');
             if (savedName) {
-                socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: savedName });
+                // Socket.io queues emits when disconnected; rejoin will send once connected
+                socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: savedName, clientId: getClientId() });
             } else {
-                // Redirect to home if no saved name
                 navigate('/');
             }
         }
@@ -32,14 +31,14 @@ function RoomPage() {
             navigate(`/room/${room.code}`);
         }
 
-        // If room is null and we're on a room page, redirect home
+        // If room is null and we're on a room page, show error after delay (use fresh state from store)
         if (!room && roomCode) {
             const timeout = setTimeout(() => {
-                if (!room) {
+                if (!useGameStore.getState().room) {
                     setError('Room not found or session expired');
                     navigate('/');
                 }
-            }, 2000);
+            }, 5000);
             return () => clearTimeout(timeout);
         }
     }, [roomCode, room, navigate, setError]);

@@ -3,6 +3,7 @@ export type RoomId = string;
 
 export interface Player {
     id: PlayerId;
+    clientId?: string; // Persistent ID from localStorage - survives browser reload
     name: string;
     score: number;
     isConnected: boolean;

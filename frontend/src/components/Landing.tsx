@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
-import { useGameStore } from '../store';
+import { useGameStore, getClientId } from '../store';
 import { SocketEvent, RoomSettings } from '../../../shared/types';
 import { Gamepad2, Users, LogIn } from 'lucide-react';
 
@@ -38,7 +38,7 @@ export const Landing: React.FC = () => {
             maxPlayers
         };
 
-        socket.emit(SocketEvent.CREATE_ROOM, { settings, name: playerName.trim() });
+        socket.emit(SocketEvent.CREATE_ROOM, { settings, name: playerName.trim(), clientId: getClientId() });
     };
 
     const handleJoinRoom = () => {
@@ -55,7 +55,7 @@ export const Landing: React.FC = () => {
         // Save player name to localStorage for rejoin
         localStorage.setItem('playerName', playerName.trim());
 
-        socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: playerName });
+        socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: playerName, clientId: getClientId() });
     };
 
     return (
