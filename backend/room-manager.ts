@@ -18,7 +18,8 @@ export class RoomManager {
             name: data.name || 'Player 1',
             score: 0,
             isConnected: true,
-            isHost: true
+            isHost: true,
+            colorIndex: 0 // Host gets first color
         };
 
         const room: Room = {
@@ -70,16 +71,16 @@ export class RoomManager {
             socket.emit(SocketEvent.ERROR, 'Room is full');
             return;
         }
-
-        const player: Player = {
+        // Add new player
+        const newPlayer: Player = {
             id: socket.id,
-            name: name || `Player ${room.players.length + 1}`,
+            name,
             score: 0,
             isConnected: true,
-            isHost: false
+            isHost: false,
+            colorIndex: room.players.length // Assign next available color
         };
-
-        room.players.push(player);
+        room.players.push(newPlayer);
         this.playerToRoom.set(socket.id, room.id);
         socket.join(room.id);
 

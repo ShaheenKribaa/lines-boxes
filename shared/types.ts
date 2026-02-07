@@ -7,6 +7,7 @@ export interface Player {
     score: number;
     isConnected: boolean;
     isHost: boolean;
+    colorIndex: number; // Stable color assignment (0-3)
 }
 
 export interface RoomSettings {

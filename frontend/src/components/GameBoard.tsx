@@ -91,7 +91,7 @@ export const GameBoard: React.FC = () => {
                                         width: '12px',
                                         height: '12px',
                                         borderRadius: '50%',
-                                        background: getPlayerColor(index)
+                                        background: getPlayerColor(player.colorIndex)
                                     }}
                                 />
                                 <span style={{ fontWeight: '600' }}>{player.name}</span>
@@ -181,7 +181,8 @@ export const GameBoard: React.FC = () => {
                                 Array.from({ length: gridSize - 1 }).map((_, col) => {
                                     const ownerId = gameState.board.boxes[row]?.[col];
                                     if (!ownerId) return null;
-                                    const ownerIndex = room.players.findIndex(p => p.id === ownerId);
+                                    const owner = room.players.find(p => p.id === ownerId);
+                                    if (!owner) return null;
                                     return (
                                         <rect
                                             key={`box-${row}-${col}`}
@@ -189,8 +190,8 @@ export const GameBoard: React.FC = () => {
                                             y={offset + row * cellSize + dotRadius}
                                             width={cellSize - dotRadius * 2}
                                             height={cellSize - dotRadius * 2}
-                                            fill={getPlayerColor(ownerIndex)}
-                                            opacity={0.3}
+                                            fill={getPlayerColor(owner.colorIndex)}
+                                            opacity={0.7}
                                             className="fade-in"
                                         />
                                     );

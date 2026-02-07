@@ -79,22 +79,34 @@ export class DotsAndBoxesGame {
             }
 
             this.state.movesRemaining--;
+            console.log('=== AFTER LINE PLACED ===');
+            console.log('movesRemaining:', this.state.movesRemaining);
+            console.log('currentPlayerIndex:', this.state.currentPlayerIndex);
             this.state.lastMove = { type: 'LINE', playerId, details: { lineType, row, col } };
 
             const completedBoxesCount = this.checkCompletedBoxes(playerId);
+            console.log('=== BOX CHECK ===');
+            console.log('Completed boxes:', completedBoxesCount);
 
-            // Classic Dots and Boxes rule: if you complete a box, you get another move (but doesn't cost dice points?)
-            // The prompt says: "Dice result determines how many lines the player may draw that turn"
-            // "If a player completes a box: They retain the turn... Dice roll only applies when no bonus turn is active"
-            // Interpretation: Completing a box gives +1 move that doesn't consume dice roll, or just resets dice roll?
-            // Let's go with: completing a box gives a free move (movesRemaining++)
+            // Classic Dots and Boxes rule: if you complete a box, you get another move
+            // When a box is completed, add bonus moves
             if (completedBoxesCount > 0) {
                 this.state.movesRemaining += completedBoxesCount;
+                console.log('=== BONUS MOVES ADDED ===');
+                console.log('After bonus moves, movesRemaining:', this.state.movesRemaining);
             }
 
+            // Only switch turns if no moves remaining AFTER bonus moves
             if (this.state.movesRemaining <= 0) {
+                console.log('=== SWITCHING TURNS ===');
+                console.log('Old player index:', this.state.currentPlayerIndex);
                 this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % players.length;
+                console.log('New player index:', this.state.currentPlayerIndex);
                 this.state.diceRoll = null;
+            } else {
+                console.log('=== PLAYER RETAINS TURN ===');
+                console.log('movesRemaining:', this.state.movesRemaining);
+                console.log('currentPlayerIndex:', this.state.currentPlayerIndex);
             }
 
             if (this.checkGameOver()) {

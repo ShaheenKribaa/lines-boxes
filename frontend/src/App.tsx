@@ -86,6 +86,7 @@ function App() {
         });
 
         socket.on(SocketEvent.ROOM_UPDATED, (room) => {
+            console.log('ROOM_UPDATED received:', room);
             setRoom(room);
             setError(null);
         });
