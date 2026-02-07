@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { socket } from '../socket';
 import { useGameStore } from '../store';
 import { SocketEvent, DotsAndBoxesState } from '../../../shared/types';
@@ -14,6 +14,20 @@ export const GameBoard: React.FC = () => {
     const { room, playerId } = useGameStore();
     const [hoveredLine, setHoveredLine] = useState<{ type: string; row: number; col: number } | null>(null);
     const [diceRolling, setDiceRolling] = useState(false);
+    const [cellSize, setCellSize] = useState(60);
+
+    // Responsive cell size for mobile
+    useEffect(() => {
+        const updateCellSize = () => {
+            const width = window.innerWidth;
+            if (width <= 480) setCellSize(36);
+            else if (width <= 768) setCellSize(48);
+            else setCellSize(60);
+        };
+        updateCellSize();
+        window.addEventListener('resize', updateCellSize);
+        return () => window.removeEventListener('resize', updateCellSize);
+    }, []);
 
     if (!room || !room.gameData || room.gameData.gameType !== 'DOTS_AND_BOXES') return null;
 
@@ -23,8 +37,6 @@ export const GameBoard: React.FC = () => {
     const currentPlayerId = gameState.playerIds?.[gameState.currentPlayerIndex];
     const currentPlayer = room.players.find(p => p.id === currentPlayerId);
     const isMyTurn = currentPlayerId === playerId;
-
-    const cellSize = 60;
     const dotRadius = 4;
     const lineThickness = 4;
     const svgWidth = gridSize * cellSize + 40;
@@ -60,12 +72,12 @@ export const GameBoard: React.FC = () => {
     };
 
     return (
-        <div className="container" style={{ minHeight: '100vh', paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <div className="container" style={{ minHeight: '100vh', paddingTop: 'clamp(1rem, 2vw, 2rem)', paddingBottom: 'clamp(1rem, 2vw, 2rem)' }}>
             <div className="fade-in">
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>Dots and Boxes</h1>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div className="game-board-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: '700' }}>Dots and Boxes</h1>
+                    <div className="game-board-players" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         {room.players.map((player) => (
                             <div
                                 key={player.id}
@@ -103,10 +115,10 @@ export const GameBoard: React.FC = () => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '2rem', alignItems: 'start' }}>
+                <div className="game-board-layout">
                     {/* Game Board */}
-                    <div className="card" style={{ padding: '2rem', display: 'flex', justifyContent: 'center' }}>
-                        <svg width={svgWidth} height={svgHeight} style={{ maxWidth: '100%', height: 'auto' }}>
+                    <div className="card game-board-card">
+                        <svg width={svgWidth} height={svgHeight} className="game-board-svg" style={{ maxWidth: '100%', height: 'auto' }}>
                             {/* Dots */}
                             {Array.from({ length: gridSize }).map((_, row) =>
                                 Array.from({ length: gridSize }).map((_, col) => (
@@ -195,7 +207,7 @@ export const GameBoard: React.FC = () => {
                     </div>
 
                     {/* Game Controls */}
-                    <div style={{ width: '300px' }}>
+                    <div className="game-controls">
                         <div className="card" style={{ marginBottom: '1rem' }}>
                             <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '1rem' }}>
                                 {isMyTurn ? '🎯 Your Turn' : `⏳ ${currentPlayer?.name}'s Turn`}

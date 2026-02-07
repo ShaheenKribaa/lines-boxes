@@ -210,10 +210,64 @@ body {
 /* Responsive */
 @media (max-width: 768px) {
   .container {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
   }
   
   .card {
     padding: 1.5rem;
+  }
+}
+
+/* Game board responsive layout */
+.game-board-layout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  align-items: start;
+}
+
+.game-controls {
+  width: 300px;
+  min-width: 280px;
+}
+
+.game-board-card {
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+
+.game-board-svg {
+  max-width: 100%;
+  height: auto;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .game-board-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .game-controls {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .game-board-card {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-board-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .game-board-players {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
