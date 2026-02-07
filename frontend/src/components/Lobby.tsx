@@ -4,6 +4,9 @@ import { useGameStore } from '../store';
 import { SocketEvent } from '../../../shared/types';
 import { Play, Copy, Check, Users, Settings } from 'lucide-react';
 
+const GRID_OPTIONS = [5, 6, 8] as const;
+const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
+
 export const Lobby: React.FC = () => {
     const { room, playerId } = useGameStore();
     const [copied, setCopied] = React.useState(false);
@@ -21,6 +24,11 @@ export const Lobby: React.FC = () => {
         navigator.clipboard.writeText(room.code);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number }) => {
+        if (!isHost) return;
+        socket.emit(SocketEvent.UPDATE_ROOM_SETTINGS, { settings: updates });
     };
 
     return (
@@ -53,13 +61,26 @@ export const Lobby: React.FC = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                                 <Settings size={16} />
                                 Grid Size
                             </div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
-                                {room.settings.gridSize}x{room.settings.gridSize}
-                            </div>
+                            {isHost ? (
+                                <select
+                                    className="input"
+                                    value={room.settings.gridSize}
+                                    onChange={(e) => handleSettingsChange({ gridSize: Number(e.target.value) })}
+                                    style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                >
+                                    {GRID_OPTIONS.map((size) => (
+                                        <option key={size} value={size}>{size}x{size}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                    {room.settings.gridSize}x{room.settings.gridSize}
+                                </div>
+                            )}
                         </div>
                         <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
@@ -71,13 +92,26 @@ export const Lobby: React.FC = () => {
                             </div>
                         </div>
                         <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                                 <Users size={16} />
                                 Max Players
                             </div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
-                                {room.settings.maxPlayers}
-                            </div>
+                            {isHost ? (
+                                <select
+                                    className="input"
+                                    value={room.settings.maxPlayers}
+                                    onChange={(e) => handleSettingsChange({ maxPlayers: Number(e.target.value) })}
+                                    style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                >
+                                    {MAX_PLAYERS_OPTIONS.filter((n) => n >= room.players.length).map((n) => (
+                                        <option key={n} value={n}>{n}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                    {room.settings.maxPlayers}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

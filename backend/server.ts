@@ -29,6 +29,10 @@ io.on('connection', (socket) => {
         roomManager.joinRoom(socket, data);
     });
 
+    socket.on(SocketEvent.UPDATE_ROOM_SETTINGS, (data) => {
+        roomManager.updateRoomSettings(socket, data);
+    });
+
     socket.on(SocketEvent.START_GAME, () => {
         roomManager.startGame(socket);
     });

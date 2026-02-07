@@ -5,9 +5,14 @@ import { useGameStore } from '../store';
 import { SocketEvent, RoomSettings } from '../../../shared/types';
 import { Gamepad2, Users, LogIn } from 'lucide-react';
 
+const GRID_OPTIONS = [5, 6, 8] as const;
+const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
+
 export const Landing: React.FC = () => {
     const [playerName, setPlayerName] = useState('');
     const [roomCode, setRoomCode] = useState('');
+    const [gridSize, setGridSize] = useState<number>(5);
+    const [maxPlayers, setMaxPlayers] = useState<number>(4);
     const { error, setError, room } = useGameStore();
     const navigate = useNavigate();
 
@@ -28,9 +33,9 @@ export const Landing: React.FC = () => {
         localStorage.setItem('playerName', playerName.trim());
 
         const settings: RoomSettings = {
-            gridSize: 5,
+            gridSize,
             diceSides: 6,
-            maxPlayers: 2
+            maxPlayers
         };
 
         socket.emit(SocketEvent.CREATE_ROOM, { settings, name: playerName.trim() });
@@ -88,6 +93,39 @@ export const Landing: React.FC = () => {
                             onChange={(e) => setPlayerName(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleCreateRoom()}
                         />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
+                                Grid Size
+                            </label>
+                            <select
+                                className="input"
+                                value={gridSize}
+                                onChange={(e) => setGridSize(Number(e.target.value))}
+                                style={{ width: '100%', padding: '0.75rem' }}
+                            >
+                                {GRID_OPTIONS.map((size) => (
+                                    <option key={size} value={size}>{size}x{size}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
+                                Max Players
+                            </label>
+                            <select
+                                className="input"
+                                value={maxPlayers}
+                                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                                style={{ width: '100%', padding: '0.75rem' }}
+                            >
+                                {MAX_PLAYERS_OPTIONS.map((n) => (
+                                    <option key={n} value={n}>{n}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>

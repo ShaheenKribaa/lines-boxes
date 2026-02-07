@@ -26,7 +26,7 @@ export class RoomManager {
             id: roomId,
             code: roomCode,
             hostId: socket.id,
-            settings: data.settings || { gridSize: 5, diceSides: 6, maxPlayers: 2 },
+            settings: data.settings || { gridSize: 5, diceSides: 6, maxPlayers: 4 },
             players: [player],
             status: 'LOBBY',
             gameData: null
@@ -85,6 +85,28 @@ export class RoomManager {
         socket.join(room.id);
 
         this.io.to(room.id).emit(SocketEvent.ROOM_UPDATED, room);
+    }
+
+    updateRoomSettings(socket: Socket, data: { settings: Partial<RoomSettings> }) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
+
+        const { gridSize, maxPlayers } = data.settings || {};
+        if (gridSize !== undefined) {
+            if ([5, 6, 8].includes(gridSize)) {
+                room.settings.gridSize = gridSize;
+            }
+        }
+        if (maxPlayers !== undefined) {
+            if (maxPlayers >= 2 && maxPlayers <= 4 && maxPlayers >= room.players.length) {
+                room.settings.maxPlayers = maxPlayers;
+            }
+        }
+
+        this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
     startGame(socket: Socket) {

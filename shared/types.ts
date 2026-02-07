@@ -58,6 +58,7 @@ export enum SocketEvent {
     // Client -> Server
     CREATE_ROOM = 'CREATE_ROOM',
     JOIN_ROOM = 'JOIN_ROOM',
+    UPDATE_ROOM_SETTINGS = 'UPDATE_ROOM_SETTINGS',
     START_GAME = 'START_GAME',
     ROLL_DICE = 'ROLL_DICE',
     PLACE_LINE = 'PLACE_LINE',

@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { DotsAndBoxesState, PlayerId, RoomSettings, SocketEvent } from '../../shared/types.js';
 
 export class DotsAndBoxesGame {
@@ -47,7 +48,7 @@ export class DotsAndBoxesGame {
             }
 
             const sides = 6; // Default to 6 sides
-            const roll = Math.floor(Math.random() * sides) + 1;
+            const roll = randomInt(1, sides + 1); // 1 to 6 inclusive
             this.state.diceRoll = roll;
             this.state.movesRemaining = roll;
             this.state.lastMove = { type: 'DICE', playerId, details: { roll } };
