@@ -142,7 +142,7 @@ export class RoomManager {
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
-    private readonly VALID_AVATARS = ['buggs-bunny', 'hellokitty', 'jerry', 'tom'];
+    private readonly VALID_AVATARS = ['buggs-bunny', 'hellokitty', 'jerry', 'tom', 'woody', 'duffy'];
 
     updateAvatar(socket: Socket, avatar: string) {
         const roomId = this.playerToRoom.get(socket.id);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { socket } from '../socket';
 import { useGameStore } from '../store';
 import { SocketEvent, DotsAndBoxesState } from '../../../shared/types';
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Trophy } from 'lucide-react';
+import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Trophy, Check, X } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
 
 const DiceIcon = ({ value }: { value: number }) => {
@@ -14,6 +14,7 @@ const DiceIcon = ({ value }: { value: number }) => {
 export const GameBoard: React.FC = () => {
     const { room, playerId } = useGameStore();
     const [hoveredLine, setHoveredLine] = useState<{ type: string; row: number; col: number } | null>(null);
+    const [pendingMove, setPendingMove] = useState<{ type: string; row: number; col: number } | null>(null);
     const [diceRolling, setDiceRolling] = useState(false);
     const [cellSize, setCellSize] = useState(60);
 
@@ -38,6 +39,13 @@ export const GameBoard: React.FC = () => {
     const currentPlayerId = gameState.playerIds?.[gameState.currentPlayerIndex];
     const currentPlayer = room.players.find(p => p.id === currentPlayerId);
     const isMyTurn = currentPlayerId === playerId;
+
+    // Clear pending move when turn changes or move is no longer valid
+    useEffect(() => {
+        if (!isMyTurn || gameState.movesRemaining <= 0) {
+            setPendingMove(null);
+        }
+    }, [isMyTurn, gameState.movesRemaining]);
     const dotRadius = 4;
     const lineThickness = 4;
     const svgWidth = gridSize * cellSize + 40;
@@ -52,7 +60,7 @@ export const GameBoard: React.FC = () => {
         setTimeout(() => setDiceRolling(false), 500);
     };
 
-    const handlePlaceLine = (lineType: string, row: number, col: number) => {
+    const handleLineClick = (lineType: string, row: number, col: number) => {
         if (!isMyTurn || gameState.movesRemaining <= 0) return;
 
         const isPlaced = lineType === 'horizontal'
@@ -61,7 +69,18 @@ export const GameBoard: React.FC = () => {
 
         if (isPlaced) return;
 
-        socket.emit(SocketEvent.PLACE_LINE, { lineType, row, col });
+        // Set pending move for confirmation
+        setPendingMove({ type: lineType, row, col });
+    };
+
+    const handleConfirmMove = () => {
+        if (!pendingMove) return;
+        socket.emit(SocketEvent.PLACE_LINE, { lineType: pendingMove.type, row: pendingMove.row, col: pendingMove.col });
+        setPendingMove(null);
+    };
+
+    const handleCancelMove = () => {
+        setPendingMove(null);
     };
 
 
@@ -131,6 +150,7 @@ export const GameBoard: React.FC = () => {
                                 Array.from({ length: gridSize - 1 }).map((_, col) => {
                                     const isPlaced = gameState.board.horizontalLines[row]?.[col];
                                     const isHovered = hoveredLine?.type === 'horizontal' && hoveredLine.row === row && hoveredLine.col === col;
+                                    const isPending = pendingMove?.type === 'horizontal' && pendingMove.row === row && pendingMove.col === col;
                                     return (
                                         <line
                                             key={`h-${row}-${col}`}
@@ -138,14 +158,14 @@ export const GameBoard: React.FC = () => {
                                             y1={offset + row * cellSize}
                                             x2={offset + (col + 1) * cellSize}
                                             y2={offset + row * cellSize}
-                                            stroke={isPlaced ? 'var(--accent-primary)' : (isHovered && isMyTurn && gameState.movesRemaining > 0 ? 'var(--accent-secondary)' : 'var(--border-color)')}
-                                            strokeWidth={lineThickness}
+                                            stroke={isPlaced ? 'var(--accent-primary)' : (isPending ? 'var(--accent-primary)' : (isHovered && isMyTurn && gameState.movesRemaining > 0 ? 'var(--accent-secondary)' : 'var(--border-color)'))}
+                                            strokeWidth={isPending ? lineThickness + 2 : lineThickness}
                                             strokeLinecap="round"
                                             style={{ cursor: isMyTurn && !isPlaced && gameState.movesRemaining > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
-                                            opacity={isPlaced ? 1 : (isHovered ? 0.7 : 0.3)}
-                                            onMouseEnter={() => !isPlaced && setHoveredLine({ type: 'horizontal', row, col })}
+                                            opacity={isPlaced ? 1 : (isPending ? 1 : (isHovered ? 0.7 : 0.3))}
+                                            onMouseEnter={() => !isPlaced && !isPending && setHoveredLine({ type: 'horizontal', row, col })}
                                             onMouseLeave={() => setHoveredLine(null)}
-                                            onClick={() => handlePlaceLine('horizontal', row, col)}
+                                            onClick={() => handleLineClick('horizontal', row, col)}
                                         />
                                     );
                                 })
@@ -156,6 +176,7 @@ export const GameBoard: React.FC = () => {
                                 Array.from({ length: gridSize }).map((_, col) => {
                                     const isPlaced = gameState.board.verticalLines[row]?.[col];
                                     const isHovered = hoveredLine?.type === 'vertical' && hoveredLine.row === row && hoveredLine.col === col;
+                                    const isPending = pendingMove?.type === 'vertical' && pendingMove.row === row && pendingMove.col === col;
                                     return (
                                         <line
                                             key={`v-${row}-${col}`}
@@ -163,14 +184,14 @@ export const GameBoard: React.FC = () => {
                                             y1={offset + row * cellSize}
                                             x2={offset + col * cellSize}
                                             y2={offset + (row + 1) * cellSize}
-                                            stroke={isPlaced ? 'var(--accent-primary)' : (isHovered && isMyTurn && gameState.movesRemaining > 0 ? 'var(--accent-secondary)' : 'var(--border-color)')}
-                                            strokeWidth={lineThickness}
+                                            stroke={isPlaced ? 'var(--accent-primary)' : (isPending ? 'var(--accent-primary)' : (isHovered && isMyTurn && gameState.movesRemaining > 0 ? 'var(--accent-secondary)' : 'var(--border-color)'))}
+                                            strokeWidth={isPending ? lineThickness + 2 : lineThickness}
                                             strokeLinecap="round"
                                             style={{ cursor: isMyTurn && !isPlaced && gameState.movesRemaining > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
-                                            opacity={isPlaced ? 1 : (isHovered ? 0.7 : 0.3)}
-                                            onMouseEnter={() => !isPlaced && setHoveredLine({ type: 'vertical', row, col })}
+                                            opacity={isPlaced ? 1 : (isPending ? 1 : (isHovered ? 0.7 : 0.3))}
+                                            onMouseEnter={() => !isPlaced && !isPending && setHoveredLine({ type: 'vertical', row, col })}
                                             onMouseLeave={() => setHoveredLine(null)}
-                                            onClick={() => handlePlaceLine('vertical', row, col)}
+                                            onClick={() => handleLineClick('vertical', row, col)}
                                         />
                                     );
                                 })
@@ -238,6 +259,32 @@ export const GameBoard: React.FC = () => {
                                     </div>
                                     <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--accent-primary)' }}>
                                         {gameState.movesRemaining} {gameState.movesRemaining === 1 ? 'move' : 'moves'} left
+                                    </div>
+                                </div>
+                            )}
+
+                            {pendingMove && isMyTurn && gameState.movesRemaining > 0 && (
+                                <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '0.75rem', border: '2px solid var(--accent-primary)' }}>
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textAlign: 'center' }}>
+                                        Place line here?
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleConfirmMove}
+                                            style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                                        >
+                                            <Check size={18} />
+                                            Confirm
+                                        </button>
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={handleCancelMove}
+                                            style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                                        >
+                                            <X size={18} />
+                                            Cancel
+                                        </button>
                                     </div>
                                 </div>
                             )}
