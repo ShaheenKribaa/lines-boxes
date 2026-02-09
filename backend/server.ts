@@ -73,6 +73,14 @@ io.on('connection', (socket) => {
         roomManager.handleGuessNumber(socket, guess);
     });
 
+    socket.on(SocketEvent.SET_WORD, (word: string) => {
+        roomManager.handleSetWord(socket, word);
+    });
+
+    socket.on(SocketEvent.GUESS_LETTER, (letter: string) => {
+        roomManager.handleGuessLetter(socket, letter);
+    });
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
         roomManager.handleDisconnect(socket);

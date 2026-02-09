@@ -12,7 +12,7 @@ export interface Player {
     colorIndex: number; // Stable color assignment (0-3)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -81,7 +81,29 @@ export interface FourChiffreState extends BaseGameState {
     currentPlayerIndex: number;
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState;
+/** Phase: both enter word, then take turns guessing (round 0: P2 guesses P1's word, round 1: P1 guesses P2's word). */
+export type WordGuesserPhase = 'ENTER_WORD' | 'GUESSING';
+
+export interface WordGuesserState extends BaseGameState {
+    gameType: 'WORD_GUESSER';
+    playerIds: PlayerId[];
+    phase: WordGuesserPhase;
+    wordSet: Record<PlayerId, boolean>;
+    /** Current round (0 or 1). Round 0 = playerIds[1] guesses playerIds[0]'s word. */
+    roundIndex: number;
+    /** Letters the current guesser has guessed this round. */
+    guessedLetters: string[];
+    /** Wrong guesses this round (max 7). */
+    mistakes: number;
+    /** Revealed word for display: same length as target word, letters or _ (never sent the actual word). */
+    revealedWord: string;
+    /** Length of the target word (so client can show blanks before any guess). */
+    wordLength: number;
+    /** Round winners: roundIndex -> winner PlayerId (guesser wins if they got the word, else target wins). */
+    roundWinners: (PlayerId | null)[];
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState;
 
 export interface Room {
     id: RoomId;
@@ -110,6 +132,8 @@ export enum SocketEvent {
     FLIP_CARD = 'FLIP_CARD',
     SET_SECRET = 'SET_SECRET',
     GUESS_NUMBER = 'GUESS_NUMBER',
+    SET_WORD = 'SET_WORD',
+    GUESS_LETTER = 'GUESS_LETTER',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client

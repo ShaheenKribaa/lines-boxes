@@ -11,6 +11,7 @@ const GRID_OPTIONS = [5, 6, 8] as const;
 const SECRET_SIZE_OPTIONS = [4, 5, 6] as const;
 const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
 const isFourChiffre = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'FOUR_CHIFFRE';
+const isWordGuesser = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'WORD_GUESSER';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
 
 export const Lobby: React.FC = () => {
@@ -21,7 +22,7 @@ export const Lobby: React.FC = () => {
 
     const isHost = room.hostId === playerId;
     const canStart = isHost && (
-        isFourChiffre(room)
+        (isFourChiffre(room) || isWordGuesser(room))
             ? room.players.length === 2
             : room.players.length >= 2 && room.players.length <= room.settings.maxPlayers
     );
@@ -84,7 +85,7 @@ export const Lobby: React.FC = () => {
                                     <button
                                         key={g.id}
                                         type="button"
-                                        onClick={() => handleSettingsChange({ gameType: g.id, ...(g.id === 'FOUR_CHIFFRE' ? { maxPlayers: 2, secretSize: 4 } : {}) })}
+                                        onClick={() => handleSettingsChange({ gameType: g.id, ...(g.id === 'FOUR_CHIFFRE' ? { maxPlayers: 2, secretSize: 4 } : g.id === 'WORD_GUESSER' ? { maxPlayers: 2 } : {}) })}
                                         style={{
                                             flex: 1,
                                             minWidth: '140px',

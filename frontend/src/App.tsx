@@ -9,6 +9,7 @@ import { ChooseFirstPlayer } from './components/ChooseFirstPlayer';
 import { DotsAndBoxesGameBoard, DotsAndBoxesGameOver } from './games/dots-and-boxes';
 import { MemoryGameBoard, MemoryGameOver } from './games/memory';
 import { FourChiffreGameBoard, FourChiffreGameOver } from './games/four-chiffre';
+import { WordGuesserGameBoard, WordGuesserGameOver } from './games/word-guesser';
 import './index.css';
 
 function RoomPage() {
@@ -62,6 +63,7 @@ function RoomPage() {
         const gameType = room.gameData?.gameType ?? room.settings?.gameType ?? 'DOTS_AND_BOXES';
         if (gameType === 'MEMORY') return <MemoryGameOver />;
         if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameOver />;
+        if (gameType === 'WORD_GUESSER') return <WordGuesserGameOver />;
         return <DotsAndBoxesGameOver />;
     }
 
@@ -70,6 +72,7 @@ function RoomPage() {
         const gameType = room.gameData?.gameType ?? 'DOTS_AND_BOXES';
         if (gameType === 'MEMORY') return <MemoryGameBoard />;
         if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameBoard />;
+        if (gameType === 'WORD_GUESSER') return <WordGuesserGameBoard />;
         return <DotsAndBoxesGameBoard />;
     }
 

@@ -1,9 +1,10 @@
 import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { MemoryGame } from './games/memory-game.js';
 import { FourChiffreGame } from './games/four-chiffre.js';
+import { WordGuesserGame } from './games/word-guesser.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RoomManager {
@@ -11,6 +12,8 @@ export class RoomManager {
     private playerToRoom: Map<string, string> = new Map();
     /** Secrets for FOUR_CHIFFRE (roomId -> playerId -> secret), never sent to client */
     private fourChiffreSecrets: Map<string, Record<string, string>> = new Map();
+    /** Words for WORD_GUESSER (roomId -> playerId -> word), never sent to client */
+    private wordGuesserWords: Map<string, Record<string, string>> = new Map();
 
     constructor(private io: Server) { }
 
@@ -93,6 +96,12 @@ export class RoomManager {
                 secrets[socket.id] = secrets[oldSocketId];
                 delete secrets[oldSocketId];
             }
+            // Update WORD_GUESSER words key if reconnecting
+            const wgWords = this.wordGuesserWords.get(room.id);
+            if (wgWords && wgWords[oldSocketId]) {
+                wgWords[socket.id] = wgWords[oldSocketId];
+                delete wgWords[oldSocketId];
+            }
 
             // Update Memory game scores key for reconnected player
             if (room.gameData && room.gameData.gameType === 'MEMORY' && 'scores' in room.gameData) {
@@ -155,11 +164,14 @@ export class RoomManager {
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
         const { gameType, gridSize, maxPlayers, pairCount, secretSize } = data.settings || {};
-        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE'].includes(gameType)) {
+        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
                 if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
                 if (room.settings.secretSize === undefined) room.settings.secretSize = 4;
+            }
+            if ((gameType as GameType) === 'WORD_GUESSER') {
+                if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
             }
         }
         if (gridSize !== undefined) {
@@ -216,6 +228,7 @@ export class RoomManager {
         room.gameData = null;
         room.rpsPicks = undefined;
         this.fourChiffreSecrets.delete(roomId);
+        this.wordGuesserWords.delete(roomId);
         room.players.forEach(p => { p.score = 0; });
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
@@ -234,6 +247,10 @@ export class RoomManager {
         }
         if (room.settings.gameType === 'FOUR_CHIFFRE' && room.players.length > 2) {
             socket.emit(SocketEvent.ERROR, '4 Chiffres is for 2 players only');
+            return;
+        }
+        if (room.settings.gameType === 'WORD_GUESSER' && room.players.length > 2) {
+            socket.emit(SocketEvent.ERROR, 'Word Guesser is for 2 players only');
             return;
         }
 
@@ -281,6 +298,10 @@ export class RoomManager {
             const game = new FourChiffreGame(orderedPlayerIds.slice(0, 2), room.settings);
             room.gameData = game.getState();
             this.fourChiffreSecrets.set(roomId, {});
+        } else if (gameType === 'WORD_GUESSER') {
+            const game = new WordGuesserGame(orderedPlayerIds.slice(0, 2), room.settings);
+            room.gameData = game.getState();
+            this.wordGuesserWords.set(roomId, {});
         } else {
             const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
@@ -433,6 +454,60 @@ export class RoomManager {
             if (game.isGameOver()) {
                 room.status = 'ENDED';
                 this.fourChiffreSecrets.delete(roomId);
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+                this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
+            } else {
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleSetWord(socket: Socket, word: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'WORD_GUESSER') return;
+
+        const state = room.gameData as WordGuesserState;
+        if (!state.playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new WordGuesserGame(state.playerIds, room.settings, state);
+            const words = this.wordGuesserWords.get(roomId) ?? {};
+            game.setWords(words);
+            game.applySetWord(socket.id, word);
+            words[socket.id] = word.trim().toLowerCase();
+            this.wordGuesserWords.set(roomId, words);
+            room.gameData = game.getState();
+            this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleGuessLetter(socket: Socket, letter: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'WORD_GUESSER') return;
+
+        const state = room.gameData as WordGuesserState;
+        if (!state.playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new WordGuesserGame(state.playerIds, room.settings, state);
+            const words = this.wordGuesserWords.get(roomId) ?? {};
+            game.setWords(words);
+            game.applyGuessLetter(socket.id, letter);
+            room.gameData = game.getState();
+
+            if (game.isGameOver()) {
+                room.status = 'ENDED';
+                this.wordGuesserWords.delete(roomId);
                 this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
                 this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
             } else {
