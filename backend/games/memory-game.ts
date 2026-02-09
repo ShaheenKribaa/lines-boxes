@@ -19,7 +19,7 @@ export class MemoryGame {
         if (existingState) {
             this.state = existingState;
         } else {
-            const pairCount = Math.min(10, Math.max(4, settings.pairCount ?? 8));
+            const pairCount = Math.min(20, Math.max(4, settings.pairCount ?? 8));
             const selectedIds = shuffle([...MEMORY_CARD_IDS]).slice(0, pairCount);
             const pairs = [...selectedIds, ...selectedIds];
             const cards = shuffle(pairs);

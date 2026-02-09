@@ -71,6 +71,10 @@ export const MemoryGameBoard: React.FC = () => {
     const isCardVisible = (index: number) =>
         effectiveRevealed.includes(index) || gameState.matched.includes(index);
 
+    const cardCount = gameState.cards.length;
+    const cols = cardCount <= 20 ? 4 : 5;
+    const rows = Math.ceil(cardCount / cols);
+
     return (
         <div className="container" style={{ minHeight: '100vh', paddingTop: 'clamp(1rem, 2vw, 2rem)', paddingBottom: 'clamp(1rem, 2vw, 2rem)' }}>
             <div className="fade-in">
@@ -101,14 +105,17 @@ export const MemoryGameBoard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="game-board-layout">
-                    <div className="card game-board-card" style={{ flex: 1 }}>
+                <div className="game-board-layout memory-game-layout">
+                    <div className="card game-board-card memory-game-card" style={{ flex: 1 }}>
                         <div
+                            className="memory-game-grid"
                             style={{
                                 display: 'grid',
-                                gridTemplateColumns: `repeat(auto-fill, minmax(80px, 1fr))`,
-                                gap: '0.75rem',
-                                maxWidth: '600px',
+                                gridTemplateColumns: `repeat(${cols}, minmax(72px, 1fr))`,
+                                gridTemplateRows: `repeat(${rows}, minmax(72px, 1fr))`,
+                                gap: 'clamp(0.5rem, 2vw, 1rem)',
+                                width: '100%',
+                                maxWidth: 'min(650px, 95vw)',
                                 margin: '0 auto'
                             }}
                         >

@@ -19,7 +19,7 @@ export interface RoomSettings {
     gridSize: number; // e.g., 5 for 5x5 dots (DOTS_AND_BOXES)
     diceSides: number;
     maxPlayers: number;
-    pairCount?: number; // 4-10 pairs for MEMORY game
+    pairCount?: number; // 4-20 pairs for MEMORY game
 }
 
 export type GameStatus = 'LOBBY' | 'CHOOSING_FIRST' | 'PLAYING' | 'ENDED';

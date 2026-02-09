@@ -9,7 +9,7 @@ import { GAME_OPTIONS } from '../constants/games';
 
 const GRID_OPTIONS = [5, 6, 8] as const;
 const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
-const PAIR_COUNT_OPTIONS = [4, 6, 8, 10] as const;
+const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20] as const;
 
 export const Landing: React.FC = () => {
     const [playerName, setPlayerName] = useState('');
