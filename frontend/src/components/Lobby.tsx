@@ -116,7 +116,10 @@ export const Lobby: React.FC = () => {
                                         id="lobby-pairs"
                                         className="input"
                                         value={room.settings.pairCount ?? 8}
-                                        onChange={(e) => handleSettingsChange({ pairCount: Number(e.target.value) })}
+                                        onChange={(e) => {
+                                            const v = Number(e.target.value);
+                                            if (!Number.isNaN(v)) handleSettingsChange({ pairCount: v });
+                                        }}
                                         style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
                                     >
                                         {PAIR_COUNT_OPTIONS.map((n) => (
