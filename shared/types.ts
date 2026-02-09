@@ -12,7 +12,7 @@ export interface Player {
     colorIndex: number; // Stable color assignment (0-3)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -60,7 +60,27 @@ export interface MemoryGameState extends BaseGameState {
     scores: Record<PlayerId, number>;
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState;
+/** Phase: enter 4-digit secret, then take turns guessing opponent's number. */
+export type FourChiffrePhase = 'ENTER_SECRET' | 'GUESSING';
+
+export interface FourChiffreGuessEntry {
+    guesserId: PlayerId;
+    targetId: PlayerId;
+    guess: string;
+    correctDigits: number;
+    correctPlace: number;
+}
+
+export interface FourChiffreState extends BaseGameState {
+    gameType: 'FOUR_CHIFFRE';
+    playerIds: PlayerId[];
+    phase: FourChiffrePhase;
+    secretSet: Record<PlayerId, boolean>; // whether each player has submitted their secret (secrets never sent to client)
+    guessHistory: FourChiffreGuessEntry[];
+    currentPlayerIndex: number;
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState;
 
 export interface Room {
     id: RoomId;
@@ -87,6 +107,8 @@ export enum SocketEvent {
     PLACE_LINE = 'PLACE_LINE',
     SELECT_GAME = 'SELECT_GAME',
     FLIP_CARD = 'FLIP_CARD',
+    SET_SECRET = 'SET_SECRET',
+    GUESS_NUMBER = 'GUESS_NUMBER',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client

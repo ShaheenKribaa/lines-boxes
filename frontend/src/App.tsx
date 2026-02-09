@@ -8,6 +8,7 @@ import { Lobby } from './components/Lobby';
 import { ChooseFirstPlayer } from './components/ChooseFirstPlayer';
 import { DotsAndBoxesGameBoard, DotsAndBoxesGameOver } from './games/dots-and-boxes';
 import { MemoryGameBoard, MemoryGameOver } from './games/memory';
+import { FourChiffreGameBoard, FourChiffreGameOver } from './games/four-chiffre';
 import './index.css';
 
 function RoomPage() {
@@ -60,6 +61,7 @@ function RoomPage() {
     if (room.status === 'ENDED') {
         const gameType = room.gameData?.gameType ?? room.settings?.gameType ?? 'DOTS_AND_BOXES';
         if (gameType === 'MEMORY') return <MemoryGameOver />;
+        if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameOver />;
         return <DotsAndBoxesGameOver />;
     }
 
@@ -67,6 +69,7 @@ function RoomPage() {
     if (room.status === 'PLAYING') {
         const gameType = room.gameData?.gameType ?? 'DOTS_AND_BOXES';
         if (gameType === 'MEMORY') return <MemoryGameBoard />;
+        if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameBoard />;
         return <DotsAndBoxesGameBoard />;
     }
 

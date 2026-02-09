@@ -9,6 +9,7 @@ import { GAME_OPTIONS } from '../constants/games';
 
 const GRID_OPTIONS = [5, 6, 8] as const;
 const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
+const isFourChiffre = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'FOUR_CHIFFRE';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
 
 export const Lobby: React.FC = () => {
@@ -18,7 +19,11 @@ export const Lobby: React.FC = () => {
     if (!room) return null;
 
     const isHost = room.hostId === playerId;
-    const canStart = room.players.length >= 2 && isHost;
+    const canStart = isHost && (
+        isFourChiffre(room)
+            ? room.players.length === 2
+            : room.players.length >= 2 && room.players.length <= room.settings.maxPlayers
+    );
 
     const handleStartGame = () => {
         socket.emit(SocketEvent.START_GAME);
@@ -78,7 +83,7 @@ export const Lobby: React.FC = () => {
                                     <button
                                         key={g.id}
                                         type="button"
-                                        onClick={() => handleSettingsChange({ gameType: g.id })}
+                                        onClick={() => handleSettingsChange({ gameType: g.id, ...(g.id === 'FOUR_CHIFFRE' ? { maxPlayers: 2 } : {}) })}
                                         style={{
                                             flex: 1,
                                             minWidth: '140px',
@@ -173,7 +178,9 @@ export const Lobby: React.FC = () => {
                                 <Users size={16} />
                                 Max Players
                             </label>
-                            {isHost ? (
+                            {isFourChiffre(room) ? (
+                                <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>2</div>
+                            ) : isHost ? (
                                 <select
                                     id="lobby-max-players"
                                     className="input"
@@ -272,7 +279,11 @@ export const Lobby: React.FC = () => {
                         style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
                     >
                         <Play size={24} />
-                        {canStart ? 'Start Game' : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
+                        {canStart
+                            ? 'Start Game'
+                            : isFourChiffre(room) && room.players.length !== 2
+                                ? `4 Chiffres needs exactly 2 players (${room.players.length} now)`
+                                : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
                     </button>
                 )}
 

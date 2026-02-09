@@ -1,13 +1,16 @@
 import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { MemoryGame } from './games/memory-game.js';
+import { FourChiffreGame } from './games/four-chiffre.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RoomManager {
     private rooms: Map<string, Room> = new Map();
     private playerToRoom: Map<string, string> = new Map();
+    /** Secrets for FOUR_CHIFFRE (roomId -> playerId -> secret), never sent to client */
+    private fourChiffreSecrets: Map<string, Record<string, string>> = new Map();
 
     constructor(private io: Server) { }
 
@@ -84,6 +87,12 @@ export class RoomManager {
                     playerIds[idx] = socket.id;
                 }
             }
+            // Update FOUR_CHIFFRE secrets key if reconnecting
+            const secrets = this.fourChiffreSecrets.get(room.id);
+            if (secrets && secrets[oldSocketId]) {
+                secrets[socket.id] = secrets[oldSocketId];
+                delete secrets[oldSocketId];
+            }
 
             // Update Memory game scores key for reconnected player
             if (room.gameData && room.gameData.gameType === 'MEMORY' && 'scores' in room.gameData) {
@@ -146,8 +155,11 @@ export class RoomManager {
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
         const { gameType, gridSize, maxPlayers, pairCount } = data.settings || {};
-        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY'].includes(gameType)) {
+        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
+            if ((gameType as GameType) === 'FOUR_CHIFFRE' && room.settings.maxPlayers > 2) {
+                room.settings.maxPlayers = 2;
+            }
         }
         if (gridSize !== undefined) {
             if ([5, 6, 8].includes(gridSize)) {
@@ -197,6 +209,7 @@ export class RoomManager {
         room.status = 'LOBBY';
         room.gameData = null;
         room.rpsPicks = undefined;
+        this.fourChiffreSecrets.delete(roomId);
         room.players.forEach(p => { p.score = 0; });
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
@@ -211,6 +224,10 @@ export class RoomManager {
 
         if (room.players.length < 2) {
             socket.emit(SocketEvent.ERROR, 'Need at least 2 players to start');
+            return;
+        }
+        if (room.settings.gameType === 'FOUR_CHIFFRE' && room.players.length > 2) {
+            socket.emit(SocketEvent.ERROR, '4 Chiffres is for 2 players only');
             return;
         }
 
@@ -254,6 +271,10 @@ export class RoomManager {
             room.players.forEach((p) => {
                 p.score = (room.gameData as any).scores?.[p.id] ?? 0;
             });
+        } else if (gameType === 'FOUR_CHIFFRE') {
+            const game = new FourChiffreGame(orderedPlayerIds.slice(0, 2), room.settings);
+            room.gameData = game.getState();
+            this.fourChiffreSecrets.set(roomId, {});
         } else {
             const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
@@ -307,6 +328,10 @@ export class RoomManager {
         const gameType = room.gameData.gameType;
 
         try {
+            if (gameType === 'FOUR_CHIFFRE') {
+                // Handled by handleSetSecret and handleGuessNumber
+                return;
+            }
             if (gameType === 'MEMORY') {
                 const game = new MemoryGame(room.players.map(p => p.id), room.settings, room.gameData as any);
                 const result = game.applyMove(socket.id, move);
@@ -351,6 +376,61 @@ export class RoomManager {
                 } else {
                     this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
                 }
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleSetSecret(socket: Socket, secret: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'FOUR_CHIFFRE') return;
+
+        const state = room.gameData as FourChiffreState;
+        const playerIds = state.playerIds;
+        if (!playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new FourChiffreGame(playerIds, room.settings, state);
+            game.applySetSecret(socket.id, secret);
+            const secrets = this.fourChiffreSecrets.get(roomId) ?? {};
+            secrets[socket.id] = secret;
+            this.fourChiffreSecrets.set(roomId, secrets);
+            room.gameData = game.getState();
+            this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleGuessNumber(socket: Socket, guess: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'FOUR_CHIFFRE') return;
+
+        const state = room.gameData as FourChiffreState;
+        const playerIds = state.playerIds;
+        if (!playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new FourChiffreGame(playerIds, room.settings, state);
+            const secrets = this.fourChiffreSecrets.get(roomId) ?? {};
+            game.setSecrets(secrets);
+            game.applyGuess(socket.id, guess);
+            room.gameData = game.getState();
+
+            if (game.isGameOver()) {
+                room.status = 'ENDED';
+                this.fourChiffreSecrets.delete(roomId);
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+                this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
+            } else {
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
             }
         } catch (error: any) {
             socket.emit(SocketEvent.ERROR, error.message);

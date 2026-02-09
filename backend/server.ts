@@ -65,6 +65,14 @@ io.on('connection', (socket) => {
         roomManager.handleGameMove(socket, { type: SocketEvent.FLIP_CARD, cardIndex });
     });
 
+    socket.on(SocketEvent.SET_SECRET, (secret: string) => {
+        roomManager.handleSetSecret(socket, secret);
+    });
+
+    socket.on(SocketEvent.GUESS_NUMBER, (guess: string) => {
+        roomManager.handleGuessNumber(socket, guess);
+    });
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
         roomManager.handleDisconnect(socket);
