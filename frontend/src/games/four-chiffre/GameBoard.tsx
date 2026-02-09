@@ -6,10 +6,27 @@ import type { FourChiffreState } from '../../../../shared/types';
 import { Lock, Send, Target, User } from 'lucide-react';
 import { PlayerAvatar } from '../../components/PlayerAvatar';
 
+const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+type DigitMark = 'correct' | 'wrong';
+
 export const FourChiffreGameBoard: React.FC = () => {
     const { room, playerId } = useGameStore();
     const [secretInput, setSecretInput] = useState('');
     const [guessInput, setGuessInput] = useState('');
+    /** User's manual notes: green = think in secret, red = think not in secret */
+    const [digitMarks, setDigitMarks] = useState<Record<number, DigitMark>>({});
+
+    const cycleDigitMark = (d: number) => {
+        setDigitMarks((prev) => {
+            const current = prev[d];
+            if (current === undefined) return { ...prev, [d]: 'correct' };
+            if (current === 'correct') return { ...prev, [d]: 'wrong' };
+            const next = { ...prev };
+            delete next[d];
+            return next;
+        });
+    };
 
     if (!room || !room.gameData || room.gameData.gameType !== 'FOUR_CHIFFRE') return null;
 
@@ -115,6 +132,41 @@ export const FourChiffreGameBoard: React.FC = () => {
                                     Your turn
                                 </span>
                             )}
+                        </div>
+
+                        <div className="card" style={{ marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Track digits: 1st click = green (think in number), 2nd = red (not in number), 3rd = clear
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+                                {DIGITS.map((d) => {
+                                    const mark = digitMarks[d];
+                                    const isGreen = mark === 'correct';
+                                    const isRed = mark === 'wrong';
+                                    return (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => cycleDigitMark(d)}
+                                            style={{
+                                                width: '2.5rem',
+                                                height: '2.5rem',
+                                                borderRadius: '0.5rem',
+                                                border: isGreen ? '2px solid var(--success)' : isRed ? '2px solid var(--error)' : '2px solid var(--border-color)',
+                                                background: isGreen ? 'rgba(16, 185, 129, 0.25)' : isRed ? 'rgba(239, 68, 68, 0.25)' : 'var(--bg-tertiary)',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '1.1rem',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            title={isGreen ? `${d} — mark as not in number` : isRed ? `${d} — clear` : `Mark ${d} as in number`}
+                                        >
+                                            {d}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {isMyTurn && (
