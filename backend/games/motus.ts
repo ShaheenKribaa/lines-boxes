@@ -20,22 +20,31 @@ function normalizeWord(input: string): string {
 
 type MotusLang = 'en' | 'fr';
 
-function getWiktionaryBase(lang: MotusLang): string {
-    return lang === 'fr' ? 'https://fr.wiktionary.org' : 'https://en.wiktionary.org';
+function mapLangToApiParam(lang: MotusLang): string {
+    return lang === 'fr' ? 'fr' : 'en';
 }
 
-async function isValidWiktionaryWord(wordNorm: string, lang: MotusLang): Promise<boolean> {
+async function isValidWord(wordNorm: string, lang: MotusLang): Promise<boolean> {
     if (!wordNorm) return false;
-    const title = encodeURIComponent(wordNorm.toLowerCase());
-    const base = getWiktionaryBase(lang);
-    const url = `${base}/w/api.php?action=query&titles=${title}&format=json&origin=*`;
-    const res = await fetch(url);
-    if (!res.ok) return false;
-    const data: any = await res.json();
-    const pages = data?.query?.pages;
-    if (!pages) return false;
-    // Missing pages are keyed by "-1"
-    return !Object.prototype.hasOwnProperty.call(pages, '-1');
+    
+    // Use random-word-api to check if word exists in the language
+    const langParam = mapLangToApiParam(lang);
+    const apiUrl = `https://random-word-api.herokuapp.com/all?lang=${langParam}`;
+    
+    try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) return false;
+        
+        const words: string[] = await res.json();
+        if (!words || words.length === 0) return false;
+        
+        // Check if the normalized word exists in the word list
+        const wordLower = wordNorm.toLowerCase();
+        return words.some(w => w.toLowerCase() === wordLower);
+    } catch (error) {
+        console.error('Error validating word:', error);
+        return false;
+    }
 }
 
 async function fetchRandomWord(lang: MotusLang): Promise<{ word: string; length: number }> {
@@ -132,7 +141,7 @@ export class MotusGame {
             throw new Error(`Guess must start with "${this.state.firstLetter}"`);
         }
 
-        const isValid = await isValidWiktionaryWord(guessNorm, this.lang);
+        const isValid = await isValidWord(guessNorm, this.lang);
         if (!isValid) {
             throw new Error('Word is not in the dictionary');
         }
