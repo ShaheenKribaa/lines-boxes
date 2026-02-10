@@ -12,7 +12,7 @@ export interface Player {
     colorIndex: number; // Stable color assignment (0-3)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -21,6 +21,7 @@ export interface RoomSettings {
     maxPlayers: number;
     pairCount?: number; // 4-40 pairs for MEMORY game (20 images reused)
     secretSize?: number; // 4, 5, or 6 digits for FOUR_CHIFFRE
+    motusLang?: 'en' | 'fr'; // language for MOTUS (Wiktionary host)
 }
 
 export type GameStatus = 'LOBBY' | 'CHOOSING_FIRST' | 'PLAYING' | 'ENDED';
@@ -103,7 +104,31 @@ export interface WordGuesserState extends BaseGameState {
     roundWinners: (PlayerId | null)[];
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState;
+export type MotusLetterColor = 'RED' | 'YELLOW' | 'BLUE';
+
+export interface MotusLetterResult {
+    letter: string;
+    color: MotusLetterColor;
+}
+
+export interface MotusGuessRow {
+    playerId: PlayerId;
+    letters: MotusLetterResult[];
+}
+
+export interface MotusState extends BaseGameState {
+    gameType: 'MOTUS';
+    playerIds: PlayerId[];
+    currentPlayerIndex: number;
+    wordLength: number;
+    maxAttempts: number;
+    firstLetter: string;
+    attempts: MotusGuessRow[];
+    /** Revealed target word (normalized, uppercase), set only at game end. */
+    finalWord?: string;
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState;
 
 export interface Room {
     id: RoomId;
@@ -134,6 +159,7 @@ export enum SocketEvent {
     GUESS_NUMBER = 'GUESS_NUMBER',
     SET_WORD = 'SET_WORD',
     GUESS_LETTER = 'GUESS_LETTER',
+    MOTUS_GUESS = 'MOTUS_GUESS',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client

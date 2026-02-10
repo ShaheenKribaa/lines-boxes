@@ -1,10 +1,11 @@
 import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState, MotusState } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { MemoryGame } from './games/memory-game.js';
 import { FourChiffreGame } from './games/four-chiffre.js';
 import { WordGuesserGame } from './games/word-guesser.js';
+import { MotusGame } from './games/motus.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RoomManager {
@@ -14,6 +15,8 @@ export class RoomManager {
     private fourChiffreSecrets: Map<string, Record<string, string>> = new Map();
     /** Words for WORD_GUESSER (roomId -> playerId -> word), never sent to client */
     private wordGuesserWords: Map<string, Record<string, string>> = new Map();
+    /** Targets for MOTUS (roomId -> target word), never sent to client */
+    private motusTargets: Map<string, string> = new Map();
 
     constructor(private io: Server) { }
 
@@ -163,8 +166,8 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
-        const { gameType, gridSize, maxPlayers, pairCount, secretSize } = data.settings || {};
-        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER'].includes(gameType)) {
+        const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang } = data.settings || {};
+        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
                 if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
@@ -172,6 +175,12 @@ export class RoomManager {
             }
             if ((gameType as GameType) === 'WORD_GUESSER') {
                 if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
+            }
+            if ((gameType as GameType) === 'MOTUS') {
+                // Motus can be played solo or with multiple players; keep existing maxPlayers.
+                if (!room.settings.motusLang) {
+                    room.settings.motusLang = 'en';
+                }
             }
         }
         if (gridSize !== undefined) {
@@ -193,6 +202,11 @@ export class RoomManager {
         if (secretSize !== undefined && room.settings.gameType === 'FOUR_CHIFFRE') {
             if ([4, 5, 6].includes(secretSize)) {
                 room.settings.secretSize = secretSize;
+            }
+        }
+        if (motusLang !== undefined && room.settings.gameType === 'MOTUS') {
+            if (motusLang === 'en' || motusLang === 'fr') {
+                room.settings.motusLang = motusLang;
             }
         }
 
@@ -229,6 +243,7 @@ export class RoomManager {
         room.rpsPicks = undefined;
         this.fourChiffreSecrets.delete(roomId);
         this.wordGuesserWords.delete(roomId);
+        this.motusTargets.delete(roomId);
         room.players.forEach(p => { p.score = 0; });
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
@@ -262,7 +277,7 @@ export class RoomManager {
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
     }
 
-    handleRpsPick(socket: Socket, choice: RpsChoice) {
+    async handleRpsPick(socket: Socket, choice: RpsChoice) {
         const roomId = this.playerToRoom.get(socket.id);
         if (!roomId) return;
 
@@ -302,6 +317,10 @@ export class RoomManager {
             const game = new WordGuesserGame(orderedPlayerIds.slice(0, 2), room.settings);
             room.gameData = game.getState();
             this.wordGuesserWords.set(roomId, {});
+        } else if (gameType === 'MOTUS') {
+            const game = await MotusGame.create(orderedPlayerIds, room.settings);
+            room.gameData = game.getState();
+            this.motusTargets.set(roomId, game.getTarget());
         } else {
             const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
@@ -508,6 +527,37 @@ export class RoomManager {
             if (game.isGameOver()) {
                 room.status = 'ENDED';
                 this.wordGuesserWords.delete(roomId);
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+                this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
+            } else {
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    async handleMotusGuess(socket: Socket, guess: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'MOTUS') return;
+
+        const state = room.gameData as MotusState;
+        if (!state.playerIds.includes(socket.id)) return;
+
+        try {
+            const target = this.motusTargets.get(roomId);
+            if (!target) {
+                throw new Error('Motus target not found');
+            }
+            const game = MotusGame.fromExisting(state, target, room.settings);
+            await game.applyGuess(socket.id, guess);
+            room.gameData = game.getState();
+
+            if (room.gameData.status === 'ENDED') {
+                room.status = 'ENDED';
                 this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
                 this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
             } else {

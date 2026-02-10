@@ -12,6 +12,7 @@ const SECRET_SIZE_OPTIONS = [4, 5, 6] as const;
 const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
 const isFourChiffre = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'FOUR_CHIFFRE';
 const isWordGuesser = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'WORD_GUESSER';
+const isMotus = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'MOTUS';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
 
 export const Lobby: React.FC = () => {
@@ -37,7 +38,7 @@ export const Lobby: React.FC = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number }) => {
+    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number; motusLang?: string }) => {
         if (!isHost) return;
         socket.emit(SocketEvent.UPDATE_ROOM_SETTINGS, { settings: updates });
     };
@@ -85,7 +86,17 @@ export const Lobby: React.FC = () => {
                                     <button
                                         key={g.id}
                                         type="button"
-                                        onClick={() => handleSettingsChange({ gameType: g.id, ...(g.id === 'FOUR_CHIFFRE' ? { maxPlayers: 2, secretSize: 4 } : g.id === 'WORD_GUESSER' ? { maxPlayers: 2 } : {}) })}
+                                        onClick={() => handleSettingsChange({
+                                            gameType: g.id,
+                                            ...(g.id === 'FOUR_CHIFFRE'
+                                                ? { maxPlayers: 2, secretSize: 4 }
+                                                : g.id === 'WORD_GUESSER'
+                                                    ? { maxPlayers: 2 }
+                                                    : g.id === 'MOTUS'
+                                                        ? { motusLang: room.settings.motusLang ?? 'en' }
+                                                        : {}
+                                            )
+                                        })}
                                         style={{
                                             flex: 1,
                                             minWidth: '140px',
@@ -163,6 +174,29 @@ export const Lobby: React.FC = () => {
                                 ) : (
                                     <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
                                         {room.settings.secretSize ?? 4} digits
+                                    </div>
+                                )}
+                            </div>
+                        ) : isMotus(room) ? (
+                            <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                                <label htmlFor="motus-lang" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                    <Settings size={16} />
+                                    Motus language
+                                </label>
+                                {isHost ? (
+                                    <select
+                                        id="motus-lang"
+                                        className="input"
+                                        value={room.settings.motusLang ?? 'en'}
+                                        onChange={(e) => handleSettingsChange({ motusLang: e.target.value })}
+                                        style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                    >
+                                        <option value="en">English (en.wiktionary.org)</option>
+                                        <option value="fr">French (fr.wiktionary.org)</option>
+                                    </select>
+                                ) : (
+                                    <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                        {(room.settings.motusLang ?? 'en') === 'fr' ? 'French' : 'English'}
                                     </div>
                                 )}
                             </div>
