@@ -5,6 +5,29 @@ import {
     PlayerId,
     RoomSettings
 } from '../../shared/types.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load the French dictionary
+let frenchDictionary: string[] | null = null;
+try {
+    const dictPath = path.join(__dirname, '../dictionnaire_simple_5000.json');
+    const dictData = JSON.parse(fs.readFileSync(dictPath, 'utf8'));
+    frenchDictionary = dictData.mots || [];
+} catch (error) {
+    console.error('Failed to load French dictionary:', error);
+}
+
+if (frenchDictionary) {
+    console.log(`Loaded French dictionary with ${frenchDictionary.length} words`);
+} else {
+    console.log('Failed to load French dictionary');
+}
 
 const DEFAULT_MAX_ATTEMPTS = 6;
 
@@ -20,35 +43,49 @@ function normalizeWord(input: string): string {
 
 type MotusLang = 'en' | 'fr';
 
-function mapLangToApiParam(lang: MotusLang): string {
-    return lang === 'fr' ? 'fr' : 'en';
+function getWiktionaryBase(lang: MotusLang): string {
+    return lang === 'fr' ? 'https://fr.wiktionary.org' : 'https://en.wiktionary.org';
 }
 
-async function isValidWord(wordNorm: string, lang: MotusLang): Promise<boolean> {
+async function isValidWiktionaryWord(wordNorm: string, lang: MotusLang): Promise<boolean> {
     if (!wordNorm) return false;
-    
-    // Use random-word-api to check if word exists in the language
-    const langParam = mapLangToApiParam(lang);
-    const apiUrl = `https://random-word-api.herokuapp.com/all?lang=${langParam}`;
-    
-    try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) return false;
+    const title = encodeURIComponent(wordNorm.toLowerCase());
+    const base = getWiktionaryBase(lang);
+    const url = `${base}/w/api.php?action=query&titles=${title}&format=json&origin=*`;
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const data: any = await res.json();
+    const pages = data?.query?.pages;
+    if (!pages) return false;
+    // Missing pages are keyed by "-1"
+    return !Object.prototype.hasOwnProperty.call(pages, '-1');
+}
+
+function getRandomWordFromDictionary(lang: MotusLang): { word: string; length: number } | null {
+    if (lang === 'fr' && frenchDictionary !== null && frenchDictionary.length > 0) {
+        // Get a random word from the French dictionary
+        const randomIndex = Math.floor(Math.random() * frenchDictionary.length);
+        const word = frenchDictionary[randomIndex];
+        const norm = normalizeWord(word);
         
-        const words: string[] = await res.json();
-        if (!words || words.length === 0) return false;
-        
-        // Check if the normalized word exists in the word list
-        const wordLower = wordNorm.toLowerCase();
-        return words.some(w => w.toLowerCase() === wordLower);
-    } catch (error) {
-        console.error('Error validating word:', error);
-        return false;
+        if (norm.length > 0) {
+            return { word: norm, length: norm.length };
+        }
     }
+    
+    return null;
 }
 
 async function fetchRandomWord(lang: MotusLang): Promise<{ word: string; length: number }> {
-    // Use random-word-api with language parameter
+    // First try to get a word from the local dictionary for French
+    if (lang === 'fr') {
+        const dictWord = getRandomWordFromDictionary(lang);
+        if (dictWord) {
+            return dictWord;
+        }
+    }
+    
+    // Fallback to random-word-api for English or if dictionary fails
     const apiUrl = `https://random-word-api.herokuapp.com/word?lang=${lang}`;
     
     try {
@@ -141,7 +178,7 @@ export class MotusGame {
             throw new Error(`Guess must start with "${this.state.firstLetter}"`);
         }
 
-        const isValid = await isValidWord(guessNorm, this.lang);
+        const isValid = await isValidWiktionaryWord(guessNorm, this.lang);
         if (!isValid) {
             throw new Error('Word is not in the dictionary');
         }
