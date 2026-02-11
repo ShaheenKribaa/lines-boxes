@@ -9,10 +9,10 @@ export interface Player {
     score: number;
     isConnected: boolean;
     isHost: boolean;
-    colorIndex: number; // Stable color assignment (0-3)
+    colorIndex: number; // Stable color assignment (0-9)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE' | 'MR_WHITE';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -158,7 +158,7 @@ export interface ChainesLogiqueState extends BaseGameState {
     chainesCount: number; // number of secondary words per player
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState;
+
 
 export interface Room {
     id: RoomId;
@@ -192,6 +192,9 @@ export enum SocketEvent {
     MOTUS_GUESS = 'MOTUS_GUESS',
     SET_CHAINES = 'SET_CHAINES',
     GUESS_CHAINE = 'GUESS_CHAINE',
+    SUBMIT_CLUE = 'SUBMIT_CLUE',
+    SUBMIT_VOTE = 'SUBMIT_VOTE',
+    MR_WHITE_GUESS = 'MR_WHITE_GUESS',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client
@@ -205,3 +208,26 @@ export enum SocketEvent {
     PLAYER_DISCONNECTED = 'PLAYER_DISCONNECTED',
     ERROR = 'ERROR'
 }
+
+export type MrWhitePhase = 'CLUE_PHASE' | 'DISCUSSION_PHASE' | 'VOTING_PHASE' | 'GUESS_PHASE';
+
+export interface MrWhiteClue {
+    playerId: PlayerId;
+    text: string;
+}
+
+export interface MrWhiteState extends BaseGameState {
+    gameType: 'MR_WHITE';
+    playerIds: PlayerId[];
+    phase: MrWhitePhase;
+    mrWhiteId: PlayerId; // The ID of the player who is Mr White (masked for others)
+    word: string; // The secret word (masked for Mr White)
+    clues: MrWhiteClue[]; // List of clues submitted in the current round
+    votes: Record<PlayerId, PlayerId>; // Voter ID -> Voted Player ID
+    eliminatedPlayerId?: PlayerId | null; // ID of the player eliminated after voting
+    timeRemaining: number; // Time remaining for discussion/voting
+    currentPlayerIndex: number; // For turn-based clue submission
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState | MrWhiteState;
+

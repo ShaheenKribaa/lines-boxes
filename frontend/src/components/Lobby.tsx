@@ -9,11 +9,12 @@ import { GAME_OPTIONS } from '../constants/games';
 
 const GRID_OPTIONS = [5, 6, 8] as const;
 const SECRET_SIZE_OPTIONS = [4, 5, 6] as const;
-const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
+const MAX_PLAYERS_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 const isFourChiffre = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'FOUR_CHIFFRE';
 const isWordGuesser = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'WORD_GUESSER';
 const isMotus = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'MOTUS';
 const isChainesLogique = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'CHAINES_LOGIQUE';
+const isMrWhite = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'MR_WHITE';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
 const CHAINES_COUNT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -98,7 +99,9 @@ export const Lobby: React.FC = () => {
                                                         ? { motusLang: room.settings.motusLang ?? 'en' }
                                                         : g.id === 'CHAINES_LOGIQUE'
                                                             ? { maxPlayers: 2, chainesCount: 5 }
-                                                            : {}
+                                                            : g.id === 'MR_WHITE'
+                                                                ? { maxPlayers: Math.max(4, room.players.length) }
+                                                                : {}
                                             )
                                         })}
                                         style={{
@@ -231,23 +234,36 @@ export const Lobby: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                        ) : isMrWhite(room) ? (
+                            <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                    <Settings size={16} />
+                                    Mr White Requirements
+                                </div>
+                                <div style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--accent-primary)' }}>
+                                    Min 4 Players Required
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    1 Mr White, others are Civilians
+                                </div>
+                            </div>
                         ) : (
                             <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
                                 <label htmlFor="lobby-grid-size" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                                     <Settings size={16} />
                                     Grid Size
                                 </label>
-                            {isHost ? (
-                                <select
-                                    id="lobby-grid-size"
-                                    className="input"
-                                    value={room.settings.gridSize}
-                                    onChange={(e) => handleSettingsChange({ gridSize: Number(e.target.value) })}
-                                    style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
-                                >
-                                    {GRID_OPTIONS.map((size) => (
-                                        <option key={size} value={size}>{size}x{size}</option>
-                                    ))}
+                                {isHost ? (
+                                    <select
+                                        id="lobby-grid-size"
+                                        className="input"
+                                        value={room.settings.gridSize}
+                                        onChange={(e) => handleSettingsChange({ gridSize: Number(e.target.value) })}
+                                        style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                    >
+                                        {GRID_OPTIONS.map((size) => (
+                                            <option key={size} value={size}>{size}x{size}</option>
+                                        ))}
                                     </select>
                                 ) : (
                                     <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
@@ -272,7 +288,7 @@ export const Lobby: React.FC = () => {
                                 <Users size={16} />
                                 Max Players
                             </label>
-                            {isFourChiffre(room) ? (
+                            {isFourChiffre(room) || isWordGuesser(room) || isChainesLogique(room) ? (
                                 <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>2</div>
                             ) : isHost ? (
                                 <select
@@ -282,7 +298,10 @@ export const Lobby: React.FC = () => {
                                     onChange={(e) => handleSettingsChange({ maxPlayers: Number(e.target.value) })}
                                     style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
                                 >
-                                    {MAX_PLAYERS_OPTIONS.filter((n) => n >= room.players.length).map((n) => (
+                                    {MAX_PLAYERS_OPTIONS.filter((n) => {
+                                        if (isMrWhite(room) && n < 4) return false;
+                                        return n >= room.players.length;
+                                    }).map((n) => (
                                         <option key={n} value={n}>{n}</option>
                                     ))}
                                 </select>
@@ -379,7 +398,9 @@ export const Lobby: React.FC = () => {
                                 ? `4 Chiffres needs exactly 2 players (${room.players.length} now)`
                                 : isChainesLogique(room) && room.players.length !== 2
                                     ? `Chaines Logique needs exactly 2 players (${room.players.length} now)`
-                                    : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
+                                    : room.settings.gameType === 'MR_WHITE' && room.players.length < 4
+                                        ? `Mr White needs at least 4 players (${room.players.length} now)`
+                                        : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
                     </button>
                 )}
 
@@ -389,6 +410,6 @@ export const Lobby: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
