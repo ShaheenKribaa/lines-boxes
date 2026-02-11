@@ -85,6 +85,14 @@ io.on('connection', (socket) => {
         roomManager.handleMotusGuess(socket, guess);
     });
 
+    socket.on(SocketEvent.SET_CHAINES, (data: { principalWord: string; secondaryWords: string[] }) => {
+        roomManager.handleSetChaines(socket, data.principalWord, data.secondaryWords);
+    });
+
+    socket.on(SocketEvent.GUESS_CHAINE, (word: string) => {
+        roomManager.handleGuessChaine(socket, word);
+    });
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
         roomManager.handleDisconnect(socket);

@@ -11,6 +11,7 @@ import { MemoryGameBoard, MemoryGameOver } from './games/memory';
 import { FourChiffreGameBoard, FourChiffreGameOver } from './games/four-chiffre';
 import { MotusGameBoard, MotusGameOver } from './games/motus';
 import { WordGuesserGameBoard, WordGuesserGameOver } from './games/word-guesser';
+import { ChainesLogiqueGameBoard, ChainesLogiqueGameOver } from './games/chaines-logique';
 import './index.css';
 
 function RoomPage() {
@@ -66,6 +67,7 @@ function RoomPage() {
         if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameOver />;
         if (gameType === 'MOTUS') return <MotusGameOver />;
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameOver />;
+        if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameOver />;
         return <DotsAndBoxesGameOver />;
     }
 
@@ -76,6 +78,7 @@ function RoomPage() {
         if (gameType === 'FOUR_CHIFFRE') return <FourChiffreGameBoard />;
         if (gameType === 'MOTUS') return <MotusGameBoard />;
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameBoard />;
+        if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameBoard />;
         return <DotsAndBoxesGameBoard />;
     }
 

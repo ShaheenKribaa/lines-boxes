@@ -12,7 +12,7 @@ export interface Player {
     colorIndex: number; // Stable color assignment (0-3)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -22,6 +22,7 @@ export interface RoomSettings {
     pairCount?: number; // 4-40 pairs for MEMORY game (20 images reused)
     secretSize?: number; // 4, 5, or 6 digits for FOUR_CHIFFRE
     motusLang?: 'en' | 'fr'; // language for MOTUS (Wiktionary host)
+    chainesCount?: number; // number of secondary words for CHAINES_LOGIQUE
 }
 
 export type GameStatus = 'LOBBY' | 'CHOOSING_FIRST' | 'PLAYING' | 'ENDED';
@@ -128,7 +129,36 @@ export interface MotusState extends BaseGameState {
     finalWord?: string;
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState;
+/** Phase: enter principal word and secondary words, then take turns guessing opponent's words. */
+export type ChainesLogiquePhase = 'ENTER_WORDS' | 'GUESSING';
+
+export interface ChaineWordEntry {
+    firstLetter: string;
+    length: number;
+    word?: string; // revealed only when guessed correctly
+}
+
+export interface ChainesLogiqueGuessEntry {
+    guesserId: PlayerId;
+    targetId: PlayerId;
+    word: string;
+    isCorrect: boolean;
+}
+
+export interface ChainesLogiqueState extends BaseGameState {
+    gameType: 'CHAINES_LOGIQUE';
+    playerIds: PlayerId[];
+    phase: ChainesLogiquePhase;
+    wordsSet: Record<PlayerId, boolean>; // whether each player has submitted their words
+    principalWords: Record<PlayerId, string>; // principal words (revealed to both players)
+    secondaryWords: Record<PlayerId, ChaineWordEntry[]>; // secondary words (masked initially)
+    revealedWords: Record<PlayerId, boolean[]>; // which words have been revealed for each player
+    guessHistory: ChainesLogiqueGuessEntry[];
+    currentPlayerIndex: number;
+    chainesCount: number; // number of secondary words per player
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState;
 
 export interface Room {
     id: RoomId;
@@ -160,6 +190,8 @@ export enum SocketEvent {
     SET_WORD = 'SET_WORD',
     GUESS_LETTER = 'GUESS_LETTER',
     MOTUS_GUESS = 'MOTUS_GUESS',
+    SET_CHAINES = 'SET_CHAINES',
+    GUESS_CHAINE = 'GUESS_CHAINE',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client

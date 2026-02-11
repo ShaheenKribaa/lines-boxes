@@ -13,7 +13,9 @@ const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
 const isFourChiffre = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'FOUR_CHIFFRE';
 const isWordGuesser = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'WORD_GUESSER';
 const isMotus = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'MOTUS';
+const isChainesLogique = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'CHAINES_LOGIQUE';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
+const CHAINES_COUNT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export const Lobby: React.FC = () => {
     const { room, playerId } = useGameStore();
@@ -23,7 +25,7 @@ export const Lobby: React.FC = () => {
 
     const isHost = room.hostId === playerId;
     const canStart = isHost && (
-        (isFourChiffre(room) || isWordGuesser(room))
+        (isFourChiffre(room) || isWordGuesser(room) || isChainesLogique(room))
             ? room.players.length === 2
             : room.players.length >= 2 && room.players.length <= room.settings.maxPlayers
     );
@@ -38,7 +40,7 @@ export const Lobby: React.FC = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number; motusLang?: string }) => {
+    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number; motusLang?: string; chainesCount?: number }) => {
         if (!isHost) return;
         socket.emit(SocketEvent.UPDATE_ROOM_SETTINGS, { settings: updates });
     };
@@ -94,7 +96,9 @@ export const Lobby: React.FC = () => {
                                                     ? { maxPlayers: 2 }
                                                     : g.id === 'MOTUS'
                                                         ? { motusLang: room.settings.motusLang ?? 'en' }
-                                                        : {}
+                                                        : g.id === 'CHAINES_LOGIQUE'
+                                                            ? { maxPlayers: 2, chainesCount: 5 }
+                                                            : {}
                                             )
                                         })}
                                         style={{
@@ -197,6 +201,33 @@ export const Lobby: React.FC = () => {
                                 ) : (
                                     <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
                                         {(room.settings.motusLang ?? 'en') === 'fr' ? 'French' : 'English'}
+                                    </div>
+                                )}
+                            </div>
+                        ) : isChainesLogique(room) ? (
+                            <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                                <label htmlFor="chaines-count" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                    <Settings size={16} />
+                                    Number of words per player
+                                </label>
+                                {isHost ? (
+                                    <select
+                                        id="chaines-count"
+                                        className="input"
+                                        value={room.settings.chainesCount ?? 5}
+                                        onChange={(e) => {
+                                            const v = Number(e.target.value);
+                                            if (CHAINES_COUNT_OPTIONS.includes(v as any)) handleSettingsChange({ chainesCount: v });
+                                        }}
+                                        style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                    >
+                                        {CHAINES_COUNT_OPTIONS.map((n) => (
+                                            <option key={n} value={n}>{n} words</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                        {room.settings.chainesCount ?? 5} words
                                     </div>
                                 )}
                             </div>
@@ -346,7 +377,9 @@ export const Lobby: React.FC = () => {
                             ? 'Start Game'
                             : isFourChiffre(room) && room.players.length !== 2
                                 ? `4 Chiffres needs exactly 2 players (${room.players.length} now)`
-                                : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
+                                : isChainesLogique(room) && room.players.length !== 2
+                                    ? `Chaines Logique needs exactly 2 players (${room.players.length} now)`
+                                    : `Waiting for players (${room.players.length}/${room.settings.maxPlayers})`}
                     </button>
                 )}
 

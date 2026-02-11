@@ -1,11 +1,12 @@
 import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState, MotusState } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState, MotusState, ChainesLogiqueState } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { MemoryGame } from './games/memory-game.js';
 import { FourChiffreGame } from './games/four-chiffre.js';
 import { WordGuesserGame } from './games/word-guesser.js';
 import { MotusGame } from './games/motus.js';
+import { ChainesLogiqueGame } from './games/chaines-logique.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RoomManager {
@@ -17,6 +18,8 @@ export class RoomManager {
     private wordGuesserWords: Map<string, Record<string, string>> = new Map();
     /** Targets for MOTUS (roomId -> target word), never sent to client */
     private motusTargets: Map<string, string> = new Map();
+    /** Words for CHAINES_LOGIQUE (roomId -> playerId -> [words]), never sent to client */
+    private chainesLogiqueWords: Map<string, Record<string, string[]>> = new Map();
 
     constructor(private io: Server) { }
 
@@ -40,7 +43,8 @@ export class RoomManager {
             gridSize: data.settings?.gridSize ?? 5,
             diceSides: data.settings?.diceSides ?? 6,
             maxPlayers: data.settings?.maxPlayers ?? 4,
-            pairCount: data.settings?.pairCount ?? 8
+            pairCount: data.settings?.pairCount ?? 8,
+            chainesCount: data.settings?.chainesCount ?? 5
         };
 
         const room: Room = {
@@ -166,8 +170,8 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
-        const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang } = data.settings || {};
-        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS'].includes(gameType)) {
+        const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang, chainesCount } = data.settings || {};
+        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS', 'CHAINES_LOGIQUE'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
                 if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
@@ -181,6 +185,10 @@ export class RoomManager {
                 if (!room.settings.motusLang) {
                     room.settings.motusLang = 'en';
                 }
+            }
+            if ((gameType as GameType) === 'CHAINES_LOGIQUE') {
+                if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
+                if (room.settings.chainesCount === undefined) room.settings.chainesCount = 5;
             }
         }
         if (gridSize !== undefined) {
@@ -207,6 +215,12 @@ export class RoomManager {
         if (motusLang !== undefined && room.settings.gameType === 'MOTUS') {
             if (motusLang === 'en' || motusLang === 'fr') {
                 room.settings.motusLang = motusLang;
+            }
+        }
+        if (chainesCount !== undefined && room.settings.gameType === 'CHAINES_LOGIQUE') {
+            const n = Number(chainesCount);
+            if (!Number.isNaN(n) && n >= 3 && n <= 10) {
+                room.settings.chainesCount = n;
             }
         }
 
@@ -268,6 +282,10 @@ export class RoomManager {
             socket.emit(SocketEvent.ERROR, 'Word Guesser is for 2 players only');
             return;
         }
+        if (room.settings.gameType === 'CHAINES_LOGIQUE' && room.players.length > 2) {
+            socket.emit(SocketEvent.ERROR, 'Chaines Logique is for 2 players only');
+            return;
+        }
 
         // Enter Rock Paper Scissors phase to decide who goes first
         room.status = 'CHOOSING_FIRST';
@@ -321,6 +339,10 @@ export class RoomManager {
             const game = await MotusGame.create(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
             this.motusTargets.set(roomId, game.getTarget());
+        } else if (gameType === 'CHAINES_LOGIQUE') {
+            const game = new ChainesLogiqueGame(orderedPlayerIds.slice(0, 2), room.settings);
+            room.gameData = game.getState();
+            this.chainesLogiqueWords.set(roomId, {});
         } else {
             const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
@@ -558,6 +580,61 @@ export class RoomManager {
 
             if (room.gameData.status === 'ENDED') {
                 room.status = 'ENDED';
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+                this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
+            } else {
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleSetChaines(socket: Socket, principalWord: string, secondaryWords: string[]) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'CHAINES_LOGIQUE') return;
+
+        const state = room.gameData as ChainesLogiqueState;
+        if (!state.playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new ChainesLogiqueGame(state.playerIds, room.settings, state);
+            const words = this.chainesLogiqueWords.get(roomId) ?? {};
+            game.setFullWords(words);
+            game.applySetWords(socket.id, principalWord, secondaryWords);
+            words[socket.id] = secondaryWords.map(w => w.toUpperCase());
+            this.chainesLogiqueWords.set(roomId, words);
+            room.gameData = game.getState();
+            this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleGuessChaine(socket: Socket, word: string) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'CHAINES_LOGIQUE') return;
+
+        const state = room.gameData as ChainesLogiqueState;
+        const playerIds = state.playerIds;
+        if (!playerIds.includes(socket.id)) return;
+
+        try {
+            const game = new ChainesLogiqueGame(playerIds, room.settings, state);
+            const words = this.chainesLogiqueWords.get(roomId) ?? {};
+            game.setFullWords(words);
+            game.applyGuess(socket.id, word);
+            room.gameData = game.getState();
+
+            if (game.isGameOver()) {
+                room.status = 'ENDED';
+                this.chainesLogiqueWords.delete(roomId);
                 this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
                 this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
             } else {
