@@ -66,12 +66,12 @@ export const FourChiffreGameBoard: React.FC = () => {
     const getPlayerName = (id: string) => room.players.find((p) => p.id === id)?.name ?? 'Player';
 
     return (
-        <div className="container" style={{ minHeight: '100vh', paddingTop: 'clamp(1rem, 2vw, 2rem)', paddingBottom: 'clamp(1rem, 2vw, 2rem)' }}>
-            <div className="fade-in" style={{ maxWidth: '560px', margin: '0 auto' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: '700', marginBottom: '0.5rem', textAlign: 'center' }}>
+        <div className="container" style={{ minHeight: '100vh', paddingTop: 'clamp(1rem, 2vw, 2rem)', paddingBottom: 'clamp(1rem, 2vw, 2rem)', width: '100%' }}>
+            <div className="fade-in" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '700', marginBottom: '0.5rem', textAlign: 'center' }}>
                     4 Chiffres
                 </h1>
-                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '1.5rem', fontSize: '1rem', maxWidth: '600px', margin: '0 auto 1.5rem auto' }}>
                     Guess the other player&apos;s {secretSize}-digit number. You get: correct digits, and how many are in the right place.
                 </p>
 
@@ -122,137 +122,193 @@ export const FourChiffreGameBoard: React.FC = () => {
 
                 {state.phase === 'GUESSING' && (
                     <>
-                        <div className="card" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <PlayerAvatar avatarId={currentPlayer?.avatar} name={currentPlayer?.name ?? ''} size={36} />
-                                <div>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Now guessing</div>
-                                    <div style={{ fontWeight: '600' }}>
-                                        {currentPlayer?.name} {isMyTurn && '(You)'}
+                        {/* Three-column layout: History (left) + Main Content (center) + History (right) */}
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                            {/* Left side - First player history */}
+                            <div className="card" style={{ flex: 1, minWidth: '250px' }}>
+                                <div style={{ 
+                                    fontSize: '0.9rem', 
+                                    fontWeight: '600', 
+                                    marginBottom: '0.75rem', 
+                                    color: 'var(--text-secondary)',
+                                    textAlign: 'center',
+                                    padding: '0.5rem',
+                                    background: 'var(--bg-tertiary)',
+                                    borderRadius: '0.5rem'
+                                }}>
+                                    {getPlayerName(state.playerIds[0])}'s guesses
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {state.guessHistory
+                                        .filter(entry => entry.guesserId === state.playerIds[0])
+                                        .map((entry, i) => (
+                                            <div
+                                                key={`p1-${i}`}
+                                                style={{
+                                                    padding: '0.6rem 0.75rem',
+                                                    background: entry.guesserId === playerId ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-tertiary)',
+                                                    borderRadius: '0.5rem',
+                                                    borderLeft: entry.guesserId === playerId ? '3px solid var(--accent-primary)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.25rem' }}>
+                                                    <strong style={{ letterSpacing: '0.1em' }}>{entry.guess}</strong>
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                    {entry.correctDigits} correct, {entry.correctPlace} in place
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+
+                            {/* Center - Main content (stacked vertically) */}
+                            <div style={{ flex: 1.5, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {/* Player name card */}
+                                <div className="card">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <PlayerAvatar avatarId={currentPlayer?.avatar} name={currentPlayer?.name ?? ''} size={36} />
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Now guessing</div>
+                                            <div style={{ fontWeight: '600' }}>
+                                                {currentPlayer?.name} {isMyTurn && '(You)'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {mySecret !== null && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                            <Lock size={18} style={{ color: 'var(--text-muted)' }} />
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}></span>
+                                            <span style={{ fontSize: '1.25rem', fontWeight: '600', letterSpacing: '0.15em', fontVariantNumeric: 'tabular-nums' }}>
+                                                {showMySecret ? mySecret : '•'.repeat(mySecret.length)}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={() => setShowMySecret((v) => !v)}
+                                                style={{ padding: '0.4rem 0.75rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                                title={showMySecret ? 'Hide secret' : 'Show secret'}
+                                            >
+                                                {showMySecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Numbers 0-9 list */}
+                                <div className="card">
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                        Track digits: 1st click = green, 2nd = red, 3rd = clear
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+                                        {DIGITS.map((d) => {
+                                            const mark = digitMarks[d];
+                                            const isGreen = mark === 'correct';
+                                            const isRed = mark === 'wrong';
+                                            return (
+                                                <button
+                                                    key={d}
+                                                    type="button"
+                                                    onClick={() => cycleDigitMark(d)}
+                                                    style={{
+                                                        width: '2.5rem',
+                                                        height: '2.5rem',
+                                                        borderRadius: '0.5rem',
+                                                        border: isGreen ? '2px solid var(--success)' : isRed ? '2px solid var(--error)' : '2px solid var(--border-color)',
+                                                        background: isGreen ? 'rgba(16, 185, 129, 0.25)' : isRed ? 'rgba(239, 68, 68, 0.25)' : 'var(--bg-tertiary)',
+                                                        color: 'var(--text-primary)',
+                                                        fontSize: '1.1rem',
+                                                        fontWeight: '600',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    title={isGreen ? `${d} — mark as not in number` : isRed ? `${d} — clear` : `Mark ${d} as in number`}
+                                                >
+                                                    {d}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
+
+                                {/* Guess field */}
+                                {isMyTurn && (
+                                    <div className="card">
+                                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Guess {otherPlayer?.name}&apos;s number</h3>
+                                        <form onSubmit={handleSubmitGuess}>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={secretSize}
+                                                className="input"
+                                                placeholder={`${secretSize} digits`}
+                                                value={guessInput}
+                                                onChange={(e) => setGuessInput(e.target.value.replace(/\D/g, '').slice(0, secretSize))}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '1rem',
+                                                    fontSize: '1.5rem',
+                                                    letterSpacing: '0.2em',
+                                                    textAlign: 'center'
+                                                }}
+                                                autoComplete="off"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="btn btn-primary"
+                                                disabled={guessInput.length !== secretSize}
+                                                style={{ width: '100%', marginTop: '0.75rem', padding: '0.75rem' }}
+                                            >
+                                                <Send size={18} /> Submit guess
+                                            </button>
+                                        </form>
+                                    </div>
+                                )}
                             </div>
-                            {mySecret !== null && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Lock size={18} style={{ color: 'var(--text-muted)' }} />
-                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>My secret:</span>
-                                    <span style={{ fontSize: '1.25rem', fontWeight: '600', letterSpacing: '0.15em', fontVariantNumeric: 'tabular-nums' }}>
-                                        {showMySecret ? mySecret : '•'.repeat(mySecret.length)}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary"
-                                        onClick={() => setShowMySecret((v) => !v)}
-                                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                                        title={showMySecret ? 'Hide secret' : 'Show secret'}
-                                    >
-                                        {showMySecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+
+                            {/* Right side - Second player history */}
+                            <div className="card" style={{ flex: 1, minWidth: '250px' }}>
+                                <div style={{ 
+                                    fontSize: '0.9rem', 
+                                    fontWeight: '600', 
+                                    marginBottom: '0.75rem', 
+                                    color: 'var(--text-secondary)',
+                                    textAlign: 'center',
+                                    padding: '0.5rem',
+                                    background: 'var(--bg-tertiary)',
+                                    borderRadius: '0.5rem'
+                                }}>
+                                    {getPlayerName(state.playerIds[1])}'s guesses
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="card" style={{ marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                Track digits: 1st click = green (think in number), 2nd = red (not in number), 3rd = clear
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
-                                {DIGITS.map((d) => {
-                                    const mark = digitMarks[d];
-                                    const isGreen = mark === 'correct';
-                                    const isRed = mark === 'wrong';
-                                    return (
-                                        <button
-                                            key={d}
-                                            type="button"
-                                            onClick={() => cycleDigitMark(d)}
-                                            style={{
-                                                width: '2.5rem',
-                                                height: '2.5rem',
-                                                borderRadius: '0.5rem',
-                                                border: isGreen ? '2px solid var(--success)' : isRed ? '2px solid var(--error)' : '2px solid var(--border-color)',
-                                                background: isGreen ? 'rgba(16, 185, 129, 0.25)' : isRed ? 'rgba(239, 68, 68, 0.25)' : 'var(--bg-tertiary)',
-                                                color: 'var(--text-primary)',
-                                                fontSize: '1.1rem',
-                                                fontWeight: '600',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s'
-                                            }}
-                                            title={isGreen ? `${d} — mark as not in number` : isRed ? `${d} — clear` : `Mark ${d} as in number`}
-                                        >
-                                            {d}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {isMyTurn && (
-                            <div className="card" style={{ marginBottom: '1.5rem' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Guess {otherPlayer?.name}&apos;s number</h3>
-                                <form onSubmit={handleSubmitGuess}>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        maxLength={secretSize}
-                                        className="input"
-                                        placeholder={`${secretSize} digits`}
-                                        value={guessInput}
-                                        onChange={(e) => setGuessInput(e.target.value.replace(/\D/g, '').slice(0, secretSize))}
-                                        style={{
-                                            width: '100%',
-                                            padding: '1rem',
-                                            fontSize: '1.5rem',
-                                            letterSpacing: '0.2em',
-                                            textAlign: 'center'
-                                        }}
-                                        autoComplete="off"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="btn btn-primary"
-                                        disabled={guessInput.length !== secretSize}
-                                        style={{ width: '100%', marginTop: '0.75rem', padding: '0.75rem' }}
-                                    >
-                                        <Send size={18} /> Submit guess
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {state.guessHistory.length > 0 && (
-                            <div className="card">
-                                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <User size={18} /> Guess history
-                                </h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {state.guessHistory.map((entry, i) => (
-                                        <div
-                                            key={i}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                flexWrap: 'wrap',
-                                                gap: '0.5rem',
-                                                padding: '0.6rem 0.75rem',
-                                                background: entry.guesserId === playerId ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-tertiary)',
-                                                borderRadius: '0.5rem',
-                                                borderLeft: entry.guesserId === playerId ? '3px solid var(--accent-primary)' : 'none'
-                                            }}
-                                        >
-                                            <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-                                                {getPlayerName(entry.guesserId)} guessed <strong style={{ letterSpacing: '0.1em' }}>{entry.guess}</strong>
-                                            </span>
-                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                                {entry.correctDigits} correct digit{entry.correctDigits !== 1 ? 's' : ''}, {entry.correctPlace} in correct place
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {state.guessHistory
+                                        .filter(entry => entry.guesserId === state.playerIds[1])
+                                        .map((entry, i) => (
+                                            <div
+                                                key={`p2-${i}`}
+                                                style={{
+                                                    padding: '0.6rem 0.75rem',
+                                                    background: entry.guesserId === playerId ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-tertiary)',
+                                                    borderRadius: '0.5rem',
+                                                    borderLeft: entry.guesserId === playerId ? '3px solid var(--accent-primary)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: '600', fontSize: '0.95rem', marginBottom: '0.25rem' }}>
+                                                    <strong style={{ letterSpacing: '0.1em' }}>{entry.guess}</strong>
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                    {entry.correctDigits} correct, {entry.correctPlace} in place
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
                                 </div>
                             </div>
-                        )}
+                        </div>
+
+
                     </>
                 )}
             </div>
