@@ -75,7 +75,18 @@ export const DotsAndBoxesGameBoard: React.FC = () => {
     const handleCancelMove = () => setPendingMove(null);
 
     const getPlayerColor = (playerIndex: number) => {
-        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b'];
+        const colors = [
+            '#6366f1', // Indigo
+            '#8b5cf6', // Violet
+            '#ec4899', // Pink
+            '#f59e0b', // Amber
+            '#10b981', // Emerald
+            '#ef4444', // Red
+            '#06b6d4', // Cyan
+            '#f97316', // Orange
+            '#a855f7', // Purple
+            '#14b8a6'  // Teal
+        ];
         return colors[playerIndex % colors.length];
     };
 

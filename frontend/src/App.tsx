@@ -13,6 +13,8 @@ import { MotusGameBoard, MotusGameOver } from './games/motus';
 import { WordGuesserGameBoard, WordGuesserGameOver } from './games/word-guesser';
 import { ChainesLogiqueGameBoard, ChainesLogiqueGameOver } from './games/chaines-logique';
 import './index.css';
+import { MrWhiteGameOver } from './games/mr-white/MrWhiteGameOver';
+import { MrWhiteGameBoard } from './games/mr-white/MrWhiteGameBoard';
 
 function RoomPage() {
     const { roomCode } = useParams<{ roomCode: string }>();
@@ -68,6 +70,7 @@ function RoomPage() {
         if (gameType === 'MOTUS') return <MotusGameOver />;
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameOver />;
         if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameOver />;
+        if (gameType === 'MR_WHITE') return <MrWhiteGameOver />;
         return <DotsAndBoxesGameOver />;
     }
 
@@ -79,6 +82,7 @@ function RoomPage() {
         if (gameType === 'MOTUS') return <MotusGameBoard />;
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameBoard />;
         if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameBoard />;
+        if (gameType === 'MR_WHITE') return <MrWhiteGameBoard />;
         return <DotsAndBoxesGameBoard />;
     }
 
