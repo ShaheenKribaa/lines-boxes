@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { SocketEvent, RoomSettings, RpsChoice, GameType, SeaBattlePosition } from '../shared/types.js';
 import { RoomManager } from './room-manager.js';
 
@@ -18,8 +20,31 @@ const io = new Server(httpServer, {
 
 const roomManager = new RoomManager(io);
 
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+
+// Authenticate Socket.IO connections via Supabase JWT
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        return next(new Error('Authentication required'));
+    }
+    if (!SUPABASE_JWT_SECRET) {
+        console.warn('SUPABASE_JWT_SECRET not set — skipping JWT verification');
+        return next();
+    }
+    try {
+        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET) as jwt.JwtPayload;
+        socket.data.userId = decoded.sub;
+        socket.data.email = decoded.email;
+        next();
+    } catch (err) {
+        console.error('JWT verification failed:', err);
+        next(new Error('Invalid or expired token'));
+    }
+});
+
 io.on('connection', (socket: Socket) => {
-    console.log('User connected:', socket.id);
+    console.log('User connected:', socket.id, '| User:', socket.data.email ?? 'unknown');
 
     socket.on(SocketEvent.CREATE_ROOM, (data: { settings: RoomSettings; name?: string; clientId?: string; avatar?: string }) => {
         roomManager.createRoom(socket, data);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Room } from '../../shared/types';
+import type { User, Session } from '@supabase/supabase-js';
 
 const CLIENT_ID_KEY = 'game_client_id';
 const AVATAR_KEY = 'game_avatar';
@@ -28,16 +29,28 @@ interface GameStore {
     room: Room | null;
     playerId: string | null;
     error: string | null;
+    user: User | null;
+    session: Session | null;
+    authLoading: boolean;
     setRoom: (room: Room | null) => void;
     setPlayerId: (id: string | null) => void;
     setError: (error: string | null) => void;
+    setUser: (user: User | null) => void;
+    setSession: (session: Session | null) => void;
+    setAuthLoading: (loading: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
     room: null,
     playerId: null,
     error: null,
+    user: null,
+    session: null,
+    authLoading: true,
     setRoom: (room) => set({ room }),
     setPlayerId: (id) => set({ playerId: id }),
-    setError: (error) => set({ error })
+    setError: (error) => set({ error }),
+    setUser: (user) => set({ user }),
+    setSession: (session) => set({ session }),
+    setAuthLoading: (authLoading) => set({ authLoading }),
 }));

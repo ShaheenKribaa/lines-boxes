@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
 import { useGameStore, getClientId, getSavedAvatar, saveAvatar } from '../store';
+import { supabase } from '../supabase';
 import { SocketEvent, RoomSettings } from '../../../shared/types';
-import { Gamepad2, Users, LogIn } from 'lucide-react';
+import { Gamepad2, Users, LogIn, LogOut } from 'lucide-react';
 import { AVATAR_OPTIONS } from '../constants/avatars';
 
 const GRID_OPTIONS = [5, 6, 8] as const;
 const MAX_PLAYERS_OPTIONS = [2, 3, 4] as const;
 
 export const Landing: React.FC = () => {
-    const [playerName, setPlayerName] = useState('');
+    const { user } = useGameStore();
+    const defaultName = user?.email?.split('@')[0] ?? '';
+    const [playerName, setPlayerName] = useState(defaultName);
     const [roomCode, setRoomCode] = useState('');
     const [gridSize, setGridSize] = useState<number>(5);
     const [maxPlayers, setMaxPlayers] = useState<number>(4);
@@ -61,19 +64,32 @@ export const Landing: React.FC = () => {
         socket.emit(SocketEvent.JOIN_ROOM, { code: roomCode.toUpperCase(), name: playerName, clientId: getClientId(), avatar });
     };
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        navigate('/auth');
+    };
+
     return (
         <div className="container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="fade-in" style={{ maxWidth: '500px', width: '100%' }}>
-                <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
                         <Gamepad2 size={48} style={{ color: 'var(--accent-primary)' }} />
                         <h1 style={{ fontSize: '2.5rem', fontWeight: '700', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             Game Hub
                         </h1>
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', marginBottom: '0.75rem' }}>
                         Play games with friends online
                     </p>
+                    {user && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Signed in as <strong style={{ color: 'var(--text-secondary)' }}>{user.email}</strong></span>
+                            <button onClick={handleLogout} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+                                <LogOut size={14} /> Logout
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {error && (
@@ -195,6 +211,6 @@ export const Landing: React.FC = () => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

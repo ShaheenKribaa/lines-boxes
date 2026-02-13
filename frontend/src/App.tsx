@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
-import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useGameStore, getClientId, getSavedAvatar } from './store';
-import { socket } from './socket';
+import { socket, connectWithToken } from './socket';
+import { supabase } from './supabase';
 import { SocketEvent } from '../../shared/types';
 import { Landing } from './components/Landing';
+import { AuthPage } from './components/AuthPage';
 import { Lobby } from './components/Lobby';
 import { ChooseFirstPlayer } from './components/ChooseFirstPlayer';
 import { DotsAndBoxesGameBoard, DotsAndBoxesGameOver } from './games/dots-and-boxes';
@@ -19,8 +21,15 @@ import { SeaBattleGameBoard, SeaBattleGameOver } from './games/sea-battle';
 
 function RoomPage() {
     const { roomCode } = useParams<{ roomCode: string }>();
-    const { room, setError } = useGameStore();
+    const { room, setError, session } = useGameStore();
     const navigate = useNavigate();
+
+    // Redirect to auth if not logged in
+    useEffect(() => {
+        if (!session) {
+            navigate('/auth');
+        }
+    }, [session, navigate]);
 
     useEffect(() => {
         // If we have a room code in URL but no room in state, try to rejoin (e.g. after page reload)
@@ -102,48 +111,114 @@ function RoomPage() {
     return null;
 }
 
+/** Protected route wrapper — redirects to /auth if not logged in */
+function RequireAuth({ children }: { children: React.ReactElement }) {
+    const { session, authLoading } = useGameStore();
+
+    if (authLoading) {
+        return (
+            <div className="container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }}>
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!session) {
+        return <Navigate to="/auth" replace />;
+    }
+
+    return children;
+}
+
 function App() {
+    const socketInitialized = useRef(false);
 
-    // Set up global socket event listeners that persist across routes
+    // Initialize Supabase auth listener
     useEffect(() => {
-        socket.connect();
+        const store = useGameStore.getState();
 
-        socket.on('connect', () => {
-            console.log('Socket connected, ID:', socket.id);
-            useGameStore.getState().setPlayerId(socket.id ?? null);
+        // Get the initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            store.setSession(session);
+            store.setUser(session?.user ?? null);
+            store.setAuthLoading(false);
+
+            // Connect socket with token if we have a session
+            if (session?.access_token) {
+                const newSocket = connectWithToken(session.access_token);
+                newSocket.connect();
+                store.setPlayerId(newSocket.id ?? null);
+                setupSocketListeners(newSocket);
+                socketInitialized.current = true;
+            }
         });
 
-        socket.on(SocketEvent.ROOM_UPDATED, (room) => {
-            console.log('ROOM_UPDATED received:', room);
-            console.log('Current player index:', room?.gameData?.currentPlayerIndex, 'movesRemaining:', room?.gameData?.movesRemaining, 'diceRoll:', room?.gameData?.diceRoll);
-            useGameStore.getState().setRoom(room);
-            useGameStore.getState().setError(null);
+        // Listen for auth state changes (login, logout, token refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const s = useGameStore.getState();
+            s.setSession(session);
+            s.setUser(session?.user ?? null);
+
+            if (session?.access_token) {
+                const newSocket = connectWithToken(session.access_token);
+                newSocket.connect();
+                s.setPlayerId(newSocket.id ?? null);
+                setupSocketListeners(newSocket);
+                socketInitialized.current = true;
+            } else if (socketInitialized.current) {
+                // Logged out — disconnect socket
+                socket.disconnect();
+                s.setRoom(null);
+                s.setPlayerId(null);
+                socketInitialized.current = false;
+            }
         });
 
-        socket.on(SocketEvent.GAME_STARTED, (gameData) => {
-            console.log('Game started:', gameData);
-        });
-
-        socket.on(SocketEvent.ERROR, (message) => {
-            console.log('Socket error:', message);
-            useGameStore.getState().setError(message);
-        });
-
-        // Don't remove listeners - they should persist for the app lifetime
         return () => {
-            socket.off('connect');
-            socket.off(SocketEvent.ROOM_UPDATED);
-            socket.off(SocketEvent.GAME_STARTED);
-            socket.off(SocketEvent.ERROR);
+            subscription.unsubscribe();
         };
-    }, []); // Empty dependency array - only run once
+    }, []);
 
     return (
         <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/room/:roomCode" element={<RoomPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<RequireAuth><Landing /></RequireAuth>} />
+            <Route path="/room/:roomCode" element={<RequireAuth><RoomPage /></RequireAuth>} />
         </Routes>
     );
+}
+
+/** Set up the global socket event listeners */
+function setupSocketListeners(sock: ReturnType<typeof connectWithToken>) {
+    // Remove any existing listeners first
+    sock.off('connect');
+    sock.off(SocketEvent.ROOM_UPDATED);
+    sock.off(SocketEvent.GAME_STARTED);
+    sock.off(SocketEvent.ERROR);
+
+    sock.on('connect', () => {
+        console.log('Socket connected, ID:', sock.id);
+        useGameStore.getState().setPlayerId(sock.id ?? null);
+    });
+
+    sock.on(SocketEvent.ROOM_UPDATED, (room) => {
+        console.log('ROOM_UPDATED received:', room);
+        useGameStore.getState().setRoom(room);
+        useGameStore.getState().setError(null);
+    });
+
+    sock.on(SocketEvent.GAME_STARTED, (gameData) => {
+        console.log('Game started:', gameData);
+    });
+
+    sock.on(SocketEvent.ERROR, (message) => {
+        console.log('Socket error:', message);
+        useGameStore.getState().setError(message);
+    });
 }
 
 export default App;
