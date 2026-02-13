@@ -162,6 +162,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -173,6 +174,7 @@ body {
     transform: translateX(-100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -180,9 +182,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -224,7 +229,7 @@ body {
   .container {
     padding: 0.75rem 1rem;
   }
-  
+
   .card {
     padding: 1.5rem;
   }
@@ -261,12 +266,12 @@ body {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .game-board-layout:not(.memory-game-layout) .game-controls {
     width: 100%;
     min-width: unset;
   }
-  
+
   .game-board-card {
     padding: 1rem;
   }
@@ -277,7 +282,7 @@ body {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .game-board-players {
     flex-wrap: wrap;
     justify-content: center;
@@ -317,7 +322,7 @@ body {
     padding: 0.5rem;
     min-height: 240px;
   }
-  
+
   .memory-game-grid button {
     padding: 0.2rem;
   }
@@ -332,7 +337,7 @@ body {
   flex-shrink: 0;
 }
 
-.memory-game-grid > * {
+.memory-game-grid>* {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -401,4 +406,151 @@ body {
 
 .memory-card-front {
   transform: rotateY(180deg);
+}
+
+/* ─── Sea Battle ─── */
+.sb-grid-container {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sb-grid-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.sb-grid {
+  display: inline-flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 2px;
+  position: relative;
+}
+
+.sb-grid-row {
+  display: flex;
+}
+
+.sb-grid-header-cell {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.sb-cell {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(45, 53, 72, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  position: relative;
+  padding: 0;
+  background: rgba(10, 14, 26, 0.5);
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 0;
+  line-height: 1;
+}
+
+.sb-cell-interactive {
+  cursor: crosshair;
+}
+
+.sb-cell-interactive:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--accent-primary);
+}
+
+.sb-cell-ship-visible {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.sb-cell-ship {
+  background: rgba(10, 14, 26, 0.5);
+}
+
+.sb-cell-blocked {
+  background: rgba(30, 36, 51, 0.3);
+}
+
+.sb-cell-hit {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: var(--error) !important;
+}
+
+.sb-cell-miss {
+  background: rgba(100, 116, 139, 0.15);
+}
+
+.sb-cell-sunk {
+  background: rgba(239, 68, 68, 0.5) !important;
+  border-color: var(--error) !important;
+}
+
+.sb-cell-hover-valid {
+  background: rgba(16, 185, 129, 0.3) !important;
+  border-color: var(--success) !important;
+}
+
+.sb-cell-hover-invalid {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: var(--error) !important;
+}
+
+.sb-cell-marker {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.sb-cell-marker-hit {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.sb-cell-marker-sunk {
+  color: #fff;
+  font-weight: 700;
+}
+
+.sb-ship-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+}
+
+.sb-battle-grids {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+@media (max-width: 680px) {
+  .sb-battle-grids {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .sb-cell,
+  .sb-grid-header-cell {
+    width: 24px;
+    height: 24px;
+  }
 }

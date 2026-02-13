@@ -15,6 +15,7 @@ import { ChainesLogiqueGameBoard, ChainesLogiqueGameOver } from './games/chaines
 import './index.css';
 import { MrWhiteGameOver } from './games/mr-white/MrWhiteGameOver';
 import { MrWhiteGameBoard } from './games/mr-white/MrWhiteGameBoard';
+import { SeaBattleGameBoard, SeaBattleGameOver } from './games/sea-battle';
 
 function RoomPage() {
     const { roomCode } = useParams<{ roomCode: string }>();
@@ -71,6 +72,7 @@ function RoomPage() {
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameOver />;
         if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameOver />;
         if (gameType === 'MR_WHITE') return <MrWhiteGameOver />;
+        if (gameType === 'SEA_BATTLE') return <SeaBattleGameOver />;
         return <DotsAndBoxesGameOver />;
     }
 
@@ -83,6 +85,7 @@ function RoomPage() {
         if (gameType === 'WORD_GUESSER') return <WordGuesserGameBoard />;
         if (gameType === 'CHAINES_LOGIQUE') return <ChainesLogiqueGameBoard />;
         if (gameType === 'MR_WHITE') return <MrWhiteGameBoard />;
+        if (gameType === 'SEA_BATTLE') return <SeaBattleGameBoard />;
         return <DotsAndBoxesGameBoard />;
     }
 

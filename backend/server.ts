@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
-import { SocketEvent, RoomSettings, RpsChoice, GameType } from '../shared/types.js';
+import { SocketEvent, RoomSettings, RpsChoice, GameType, SeaBattlePosition } from '../shared/types.js';
 import { RoomManager } from './room-manager.js';
 
 const app = express();
@@ -103,6 +103,14 @@ io.on('connection', (socket: Socket) => {
 
     socket.on(SocketEvent.MR_WHITE_GUESS, (guess: string) => {
         roomManager.handleMrWhiteGuess(socket, guess);
+    });
+
+    socket.on(SocketEvent.SET_SHIPS, (ships: { name: string; size: number; positions: SeaBattlePosition[] }[]) => {
+        roomManager.handleSetShips(socket, ships);
+    });
+
+    socket.on(SocketEvent.FIRE_SHOT, (position: SeaBattlePosition) => {
+        roomManager.handleFireShot(socket, position);
     });
 
     socket.on('disconnect', () => {

@@ -12,7 +12,7 @@ export interface Player {
     colorIndex: number; // Stable color assignment (0-3)
 }
 
-export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE' | 'MR_WHITE';
+export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE' | 'MR_WHITE' | 'SEA_BATTLE';
 
 export interface RoomSettings {
     gameType: GameType;
@@ -184,7 +184,50 @@ export interface MrWhiteState extends BaseGameState {
     currentPlayerIndex: number;
 }
 
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState | MrWhiteState;
+/** Sea Battle types */
+export interface SeaBattlePosition {
+    row: number;
+    col: number;
+}
+
+export interface SeaBattleShip {
+    id: string;
+    name: string;
+    size: number;
+    positions: SeaBattlePosition[];
+    hits: SeaBattlePosition[];
+    sunk: boolean;
+}
+
+export type SeaBattlePhase = 'PLACEMENT' | 'BATTLE';
+
+export interface SeaBattleShotResult {
+    position: SeaBattlePosition;
+    hit: boolean;
+    sunkShipName?: string;
+}
+
+/** Per-player view of a sea-battle board (sent to each client individually) */
+export interface SeaBattlePlayerView {
+    myShips: SeaBattleShip[];           // player's own ships (full detail)
+    enemyShots: SeaBattlePosition[];    // shots the opponent has fired at me
+    myShots: SeaBattlePosition[];       // shots I have fired at opponent
+    myShotResults: SeaBattleShotResult[]; // results of my shots (hit/miss/sunk)
+    sunkEnemyShips: SeaBattleShip[];    // opponent ships that are fully sunk (revealed)
+}
+
+export interface SeaBattleState extends BaseGameState {
+    gameType: 'SEA_BATTLE';
+    playerIds: PlayerId[];
+    phase: SeaBattlePhase;
+    shipsPlaced: Record<PlayerId, boolean>; // whether each player has placed ships
+    currentPlayerIndex: number;
+    /** Per-player views (only the relevant view is sent to each client) */
+    playerView?: SeaBattlePlayerView;
+    lastShotResult?: SeaBattleShotResult | null;
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState | MrWhiteState | SeaBattleState;
 
 export interface Room {
     id: RoomId;
@@ -218,6 +261,11 @@ export enum SocketEvent {
     MOTUS_GUESS = 'MOTUS_GUESS',
     SET_CHAINES = 'SET_CHAINES',
     GUESS_CHAINE = 'GUESS_CHAINE',
+    SUBMIT_CLUE = 'SUBMIT_CLUE',
+    SUBMIT_VOTE = 'SUBMIT_VOTE',
+    MR_WHITE_GUESS = 'MR_WHITE_GUESS',
+    SET_SHIPS = 'SET_SHIPS',
+    FIRE_SHOT = 'FIRE_SHOT',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client

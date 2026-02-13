@@ -7,5 +7,6 @@ export const GAME_OPTIONS: { id: GameType; label: string; description: string }[
     { id: 'WORD_GUESSER', label: 'Word Guesser', description: 'Guess the other player\'s word, 7 mistakes max' },
     { id: 'MOTUS', label: 'Motus', description: 'Guess the hidden word with colored hints' },
     { id: 'CHAINES_LOGIQUE', label: 'Chaines Logique', description: 'Guess the opponent\'s themed word chain' },
-    { id: 'MR_WHITE', label: 'Mr White', description: 'Social deduction game: Find Mr White!' }
+    { id: 'MR_WHITE', label: 'Mr White', description: 'Social deduction game: Find Mr White!' },
+    { id: 'SEA_BATTLE', label: 'Sea Battle', description: 'Sink enemy ships!' }
 ];

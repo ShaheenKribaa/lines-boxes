@@ -1,6 +1,6 @@
 import { randomInt } from 'crypto';
 import { Server, Socket } from 'socket.io';
-import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState, MotusState, ChainesLogiqueState, MrWhiteState } from '../shared/types.js';
+import { Room, Player, SocketEvent, RoomSettings, RpsChoice, GameType, FourChiffreState, WordGuesserState, MotusState, ChainesLogiqueState, MrWhiteState, SeaBattleState, SeaBattleShip, SeaBattlePosition, SeaBattleShotResult } from '../shared/types.js';
 import { DotsAndBoxesGame } from './games/dots-and-boxes.js';
 import { MemoryGame } from './games/memory-game.js';
 import { FourChiffreGame } from './games/four-chiffre.js';
@@ -8,6 +8,7 @@ import { WordGuesserGame } from './games/word-guesser.js';
 import { MotusGame } from './games/motus.js';
 import { ChainesLogiqueGame } from './games/chaines-logique.js';
 import { MrWhiteGame } from './games/mr-white-game.js';
+import { SeaBattleGame } from './games/sea-battle.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RoomManager {
@@ -23,6 +24,8 @@ export class RoomManager {
     private chainesLogiqueWords: Map<string, Record<string, string[]>> = new Map();
     /** Interval for checking game timeouts */
     private timeoutCheckerInterval: NodeJS.Timeout | null = null;
+    /** Sea Battle game instances: roomId -> SeaBattleGame */
+    private seaBattleGames: Map<string, SeaBattleGame> = new Map();
 
     constructor(private io: Server) {
         // Start periodic timeout checker
@@ -53,7 +56,7 @@ export class RoomManager {
             if (room.gameData.gameType === 'CHAINES_LOGIQUE') {
                 this.checkChainesLogiqueTimeout(roomId, room);
             }
-            
+
             // Add other game types here as needed
         }
     }
@@ -61,10 +64,10 @@ export class RoomManager {
     /** Check if a CHAINES_LOGIQUE game has timed out */
     private checkChainesLogiqueTimeout(roomId: string, room: Room) {
         const state = room.gameData as ChainesLogiqueState;
-        
+
         // Only check during GUESSING phase
         if (state.phase !== 'GUESSING' || !state.turnStartTime) return;
-        
+
         const elapsed = Date.now() - state.turnStartTime;
         if (elapsed > state.turnTimeLimit) {
             // Time has expired - switch turns automatically
@@ -72,11 +75,11 @@ export class RoomManager {
                 const game = new ChainesLogiqueGame(state.playerIds, room.settings, state);
                 const words = this.chainesLogiqueWords.get(roomId) ?? {};
                 game.setFullWords(words);
-                
+
                 // Get current player to create timeout entry
                 const currentPlayerId = state.playerIds[state.currentPlayerIndex];
                 const otherPlayerId = state.playerIds[1 - state.currentPlayerIndex];
-                
+
                 // Create timeout entry in guess history
                 const entry = {
                     guesserId: currentPlayerId,
@@ -85,14 +88,14 @@ export class RoomManager {
                     isCorrect: false
                 };
                 state.guessHistory.push(entry);
-                
+
                 // Switch to next player
                 state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.playerIds.length;
                 state.turnStartTime = Date.now();
-                
+
                 // Emit updated state
                 this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
-                
+
                 console.log(`Chaines Logique timeout in room ${roomId}: Switched turn from ${currentPlayerId} to ${state.playerIds[state.currentPlayerIndex]}`);
             } catch (error) {
                 console.error('Error handling CHAINES_LOGIQUE timeout:', error);
@@ -248,7 +251,7 @@ export class RoomManager {
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
         const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang, chainesCount, timerDuration } = data.settings || {};
-        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS', 'CHAINES_LOGIQUE', 'MR_WHITE'].includes(gameType)) {
+        if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS', 'CHAINES_LOGIQUE', 'MR_WHITE', 'SEA_BATTLE'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
                 if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
@@ -269,6 +272,9 @@ export class RoomManager {
             }
             if ((gameType as GameType) === 'MR_WHITE') {
                 if (room.settings.maxPlayers < 4) room.settings.maxPlayers = 4;
+            }
+            if ((gameType as GameType) === 'SEA_BATTLE') {
+                if (room.settings.maxPlayers > 2) room.settings.maxPlayers = 2;
             }
         }
         if (gridSize !== undefined) {
@@ -303,7 +309,7 @@ export class RoomManager {
                 room.settings.chainesCount = n;
             }
         }
-        
+
         if (timerDuration !== undefined && room.settings.gameType === 'CHAINES_LOGIQUE') {
             const duration = Number(timerDuration);
             if (!Number.isNaN(duration) && [60, 120, 180].includes(duration)) {
@@ -345,6 +351,7 @@ export class RoomManager {
         this.fourChiffreSecrets.delete(roomId);
         this.wordGuesserWords.delete(roomId);
         this.motusTargets.delete(roomId);
+        this.seaBattleGames.delete(roomId);
         room.players.forEach(p => { p.score = 0; });
 
         this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
@@ -375,6 +382,10 @@ export class RoomManager {
         }
         if (room.settings.gameType === 'MR_WHITE' && room.players.length < 4) {
             socket.emit(SocketEvent.ERROR, 'Mr White requires at least 4 players');
+            return;
+        }
+        if (room.settings.gameType === 'SEA_BATTLE' && room.players.length > 2) {
+            socket.emit(SocketEvent.ERROR, 'Sea Battle is for 2 players only');
             return;
         }
 
@@ -437,6 +448,18 @@ export class RoomManager {
         } else if (gameType === 'MR_WHITE') {
             const game = new MrWhiteGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
+        } else if (gameType === 'SEA_BATTLE') {
+            const game = new SeaBattleGame(orderedPlayerIds.slice(0, 2), room.settings);
+            room.gameData = game.getState();
+            this.seaBattleGames.set(roomId, game);
+            // Sea Battle sends per-player views, so emit individually
+            for (const p of room.players) {
+                if (!p.isConnected) continue;
+                const playerState = { ...room, gameData: game.getStateForPlayer(p.id) };
+                this.io.to(p.id).emit(SocketEvent.ROOM_UPDATED, playerState);
+            }
+            this.io.to(roomId).emit(SocketEvent.GAME_STARTED, room.gameData);
+            return; // Already emitted per-player
         } else {
             const game = new DotsAndBoxesGame(orderedPlayerIds, room.settings);
             room.gameData = game.getState();
@@ -725,7 +748,7 @@ export class RoomManager {
             game.setFullWords(words);
             const result = game.applyGuess(socket.id, word);
             room.gameData = game.getState();
-            
+
             if (game.isGameOver()) {
                 room.status = 'ENDED';
                 this.chainesLogiqueWords.delete(roomId);
@@ -830,6 +853,67 @@ export class RoomManager {
         }
     }
 
+    handleSetShips(socket: Socket, ships: { name: string; size: number; positions: SeaBattlePosition[] }[]) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'SEA_BATTLE') return;
+
+        const game = this.seaBattleGames.get(roomId);
+        if (!game) return;
+
+        try {
+            game.applySetShips(socket.id, ships);
+            room.gameData = game.getState();
+
+            // Emit per-player views
+            for (const p of room.players) {
+                if (!p.isConnected) continue;
+                const playerState = { ...room, gameData: game.getStateForPlayer(p.id) };
+                this.io.to(p.id).emit(SocketEvent.ROOM_UPDATED, playerState);
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
+    handleFireShot(socket: Socket, position: SeaBattlePosition) {
+        const roomId = this.playerToRoom.get(socket.id);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room || room.status !== 'PLAYING' || !room.gameData || room.gameData.gameType !== 'SEA_BATTLE') return;
+
+        const game = this.seaBattleGames.get(roomId);
+        if (!game) return;
+
+        try {
+            game.applyShot(socket.id, position);
+            room.gameData = game.getState();
+
+            if (game.isGameOver()) {
+                room.status = 'ENDED';
+                // On game over, emit per-player views
+                for (const p of room.players) {
+                    if (!p.isConnected) continue;
+                    const playerState = { ...room, gameData: game.getStateForPlayer(p.id) };
+                    this.io.to(p.id).emit(SocketEvent.ROOM_UPDATED, playerState);
+                }
+                this.io.to(roomId).emit(SocketEvent.GAME_ENDED, room.gameData);
+            } else {
+                // Emit per-player views
+                for (const p of room.players) {
+                    if (!p.isConnected) continue;
+                    const playerState = { ...room, gameData: game.getStateForPlayer(p.id) };
+                    this.io.to(p.id).emit(SocketEvent.ROOM_UPDATED, playerState);
+                }
+            }
+        } catch (error: any) {
+            socket.emit(SocketEvent.ERROR, error.message);
+        }
+    }
+
     handleDisconnect(socket: Socket) {
         const roomId = this.playerToRoom.get(socket.id);
         if (!roomId) return;
@@ -846,6 +930,7 @@ export class RoomManager {
         const anyConnected = room.players.some(p => p.isConnected);
         if (!anyConnected) {
             this.rooms.delete(roomId);
+            this.seaBattleGames.delete(roomId);
         } else {
             this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
             this.io.to(roomId).emit(SocketEvent.PLAYER_DISCONNECTED, socket.id);
