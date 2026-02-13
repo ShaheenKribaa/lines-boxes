@@ -20,10 +20,10 @@ interface GridProps {
 }
 
 const SHIP_COLORS: Record<string, { fill: string; stroke: string; accent: string }> = {
-    Battleship: { fill: '#4a5568', stroke: '#2d3748', accent: '#718096' },
-    Cruiser: { fill: '#5a6577', stroke: '#3d4a5c', accent: '#8494a7' },
-    Destroyer: { fill: '#6b7280', stroke: '#4b5563', accent: '#9ca3af' },
-    Submarine: { fill: '#374151', stroke: '#1f2937', accent: '#6b7280' },
+    Battleship: { fill: '#2563eb', stroke: '#1e3a8a', accent: '#60a5fa' },
+    Cruiser: { fill: '#9333ea', stroke: '#581c87', accent: '#c084fc' },
+    Destroyer: { fill: '#059669', stroke: '#064e3b', accent: '#34d399' },
+    Submarine: { fill: '#d97706', stroke: '#78350f', accent: '#fbbf24' },
 };
 
 function ShipSVG({ ship, cellSize }: { ship: SeaBattleShip; cellSize: number }) {

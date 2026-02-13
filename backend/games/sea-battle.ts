@@ -336,8 +336,8 @@ export class SeaBattleGame {
         if (allSunk) {
             this.state.status = 'ENDED';
             this.state.winner = playerId;
-        } else {
-            // Switch turn
+        } else if (!hit) {
+            // Switch turn only on a miss — hits grant another turn
             this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.playerIds.length;
         }
 

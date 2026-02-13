@@ -303,10 +303,10 @@ const BattlePhase: React.FC<BattleProps> = ({ gameState, playerId, players }) =>
     if (lastShot) {
         if (lastShot.sunkShipName) {
             message = isMyTurn
-                ? `⚠️ Your ${lastShot.sunkShipName} was sunk!`
-                : `💥 You sunk their ${lastShot.sunkShipName}!`;
+                ? `💥 You sunk their ${lastShot.sunkShipName}! Fire again!`
+                : `⚠️ Your ${lastShot.sunkShipName} was sunk!`;
         } else if (lastShot.hit) {
-            message = isMyTurn ? '⚠️ Your ship was hit!' : '🔥 Hit!';
+            message = isMyTurn ? '🔥 Hit! Fire again!' : '⚠️ Your ship was hit!';
         } else {
             message = isMyTurn ? 'Your turn! Click on the enemy grid to fire.' : '💨 Miss!';
         }
