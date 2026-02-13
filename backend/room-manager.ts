@@ -21,8 +21,84 @@ export class RoomManager {
     private motusTargets: Map<string, string> = new Map();
     /** Words for CHAINES_LOGIQUE (roomId -> playerId -> [words]), never sent to client */
     private chainesLogiqueWords: Map<string, Record<string, string[]>> = new Map();
+    /** Interval for checking game timeouts */
+    private timeoutCheckerInterval: NodeJS.Timeout | null = null;
 
-    constructor(private io: Server) { }
+    constructor(private io: Server) {
+        // Start periodic timeout checker
+        this.startTimeoutChecker();
+    }
+
+    /** Start periodic timeout checking for active games */
+    private startTimeoutChecker() {
+        this.timeoutCheckerInterval = setInterval(() => {
+            this.checkGameTimeouts();
+        }, 1000); // Check every second
+    }
+
+    /** Stop the timeout checker (for cleanup) */
+    public stopTimeoutChecker() {
+        if (this.timeoutCheckerInterval) {
+            clearInterval(this.timeoutCheckerInterval);
+            this.timeoutCheckerInterval = null;
+        }
+    }
+
+    /** Check all active games for timeout conditions */
+    private checkGameTimeouts() {
+        for (const [roomId, room] of this.rooms) {
+            if (room.status !== 'PLAYING' || !room.gameData) continue;
+
+            // Handle CHAINES_LOGIQUE timeout
+            if (room.gameData.gameType === 'CHAINES_LOGIQUE') {
+                this.checkChainesLogiqueTimeout(roomId, room);
+            }
+            
+            // Add other game types here as needed
+        }
+    }
+
+    /** Check if a CHAINES_LOGIQUE game has timed out */
+    private checkChainesLogiqueTimeout(roomId: string, room: Room) {
+        const state = room.gameData as ChainesLogiqueState;
+        
+        // Only check during GUESSING phase
+        if (state.phase !== 'GUESSING' || !state.turnStartTime) return;
+        
+        const elapsed = Date.now() - state.turnStartTime;
+        if (elapsed > state.turnTimeLimit) {
+            // Time has expired - switch turns automatically
+            try {
+                const game = new ChainesLogiqueGame(state.playerIds, room.settings, state);
+                const words = this.chainesLogiqueWords.get(roomId) ?? {};
+                game.setFullWords(words);
+                
+                // Get current player to create timeout entry
+                const currentPlayerId = state.playerIds[state.currentPlayerIndex];
+                const otherPlayerId = state.playerIds[1 - state.currentPlayerIndex];
+                
+                // Create timeout entry in guess history
+                const entry = {
+                    guesserId: currentPlayerId,
+                    targetId: otherPlayerId,
+                    word: '',
+                    isCorrect: false
+                };
+                state.guessHistory.push(entry);
+                
+                // Switch to next player
+                state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.playerIds.length;
+                state.turnStartTime = Date.now();
+                
+                // Emit updated state
+                this.io.to(roomId).emit(SocketEvent.ROOM_UPDATED, room);
+                
+                console.log(`Chaines Logique timeout in room ${roomId}: Switched turn from ${currentPlayerId} to ${state.playerIds[state.currentPlayerIndex]}`);
+            } catch (error) {
+                console.error('Error handling CHAINES_LOGIQUE timeout:', error);
+            }
+        }
+    }
 
     createRoom(socket: Socket, data: { settings: RoomSettings; name?: string; clientId?: string; avatar?: string }) {
         const roomId = uuidv4();
@@ -640,9 +716,9 @@ export class RoomManager {
             const game = new ChainesLogiqueGame(playerIds, room.settings, state);
             const words = this.chainesLogiqueWords.get(roomId) ?? {};
             game.setFullWords(words);
-            game.applyGuess(socket.id, word);
+            const result = game.applyGuess(socket.id, word);
             room.gameData = game.getState();
-
+            
             if (game.isGameOver()) {
                 room.status = 'ENDED';
                 this.chainesLogiqueWords.delete(roomId);

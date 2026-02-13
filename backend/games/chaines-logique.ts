@@ -11,6 +11,8 @@ function getChainesCount(settings: RoomSettings): number {
     return n >= 3 && n <= 10 ? n : 5;
 }
 
+const TURN_TIME_LIMIT_MS = 60000; // 60 seconds
+
 function isValidWord(word: string): boolean {
     return typeof word === 'string' && word.length >= 2 && word.length <= 20 && /^[a-zA-Z]+$/.test(word);
 }
@@ -37,7 +39,8 @@ export class ChainesLogiqueGame {
                 principalWords[id] = '';
                 secondaryWords[id] = Array(this.chainesCount).fill(null).map(() => ({
                     firstLetter: '',
-                    length: 0
+                    length: 0,
+                    revealedLetters: 1
                 }));
                 revealedWords[id] = Array(this.chainesCount).fill(false);
             });
@@ -54,7 +57,8 @@ export class ChainesLogiqueGame {
                 revealedWords,
                 guessHistory: [],
                 currentPlayerIndex: 0,
-                chainesCount: this.chainesCount
+                chainesCount: this.chainesCount,
+                turnTimeLimit: TURN_TIME_LIMIT_MS
             };
         }
     }
@@ -110,7 +114,8 @@ export class ChainesLogiqueGame {
         // Store masked secondary words
         this.state.secondaryWords[playerId] = secondaryWords.map(word => ({
             firstLetter: word[0].toUpperCase(),
-            length: word.length
+            length: word.length,
+            revealedLetters: 1
         }));
         
         // Store full words on server only
@@ -132,6 +137,7 @@ export class ChainesLogiqueGame {
             this.state.phase = 'GUESSING';
             // First player starts (playerIds[0])
             this.state.currentPlayerIndex = 0;
+            this.state.turnStartTime = Date.now();
         }
     }
 
@@ -200,10 +206,36 @@ export class ChainesLogiqueGame {
                 this.state.winner = playerId;
             }
             // Player gets another turn on correct guess
-            // (currentPlayerIndex stays the same)
+            // Reset timer for continued turn
+            this.state.turnStartTime = Date.now();
         } else {
-            // Incorrect guess - end turn
+            // Incorrect guess - reveal one more letter from the first unrevealed word and end turn
+            const targetWordEntries = this.state.secondaryWords[otherPlayerId];
+            const revealedStatus = this.state.revealedWords[otherPlayerId];
+            
+            // Find the first unrevealed word to reveal more letters from
+            let wordToRevealIndex = -1;
+            for (let i = 0; i < revealedStatus.length; i++) {
+                if (!revealedStatus[i]) {
+                    wordToRevealIndex = i;
+                    break;
+                }
+            }
+            
+            // Reveal one more letter if we found an unrevealed word
+            if (wordToRevealIndex !== -1 && targetWordEntries[wordToRevealIndex]) {
+                const currentRevealed = targetWordEntries[wordToRevealIndex].revealedLetters || 1;
+                const targetWordLength = targetWords[wordToRevealIndex].length;
+                
+                // Reveal one more letter (up to the full word length)
+                if (currentRevealed < targetWordLength) {
+                    targetWordEntries[wordToRevealIndex].revealedLetters = currentRevealed + 1;
+                }
+            }
+            
+            // End turn
             this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.playerIds.length;
+            this.state.turnStartTime = Date.now(); // Reset timer for next player
         }
         
         return {

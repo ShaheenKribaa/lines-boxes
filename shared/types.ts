@@ -9,7 +9,7 @@ export interface Player {
     score: number;
     isConnected: boolean;
     isHost: boolean;
-    colorIndex: number; // Stable color assignment (0-9)
+    colorIndex: number; // Stable color assignment (0-3)
 }
 
 export type GameType = 'DOTS_AND_BOXES' | 'MEMORY' | 'FOUR_CHIFFRE' | 'WORD_GUESSER' | 'MOTUS' | 'CHAINES_LOGIQUE' | 'MR_WHITE';
@@ -136,6 +136,7 @@ export interface ChaineWordEntry {
     firstLetter: string;
     length: number;
     word?: string; // revealed only when guessed correctly
+    revealedLetters?: number; // number of letters to reveal from the start (for incorrect guesses)
 }
 
 export interface ChainesLogiqueGuessEntry {
@@ -156,9 +157,33 @@ export interface ChainesLogiqueState extends BaseGameState {
     guessHistory: ChainesLogiqueGuessEntry[];
     currentPlayerIndex: number;
     chainesCount: number; // number of secondary words per player
+    /** Time when current player's turn started (milliseconds since epoch) */
+    turnStartTime?: number;
+    /** Time limit for each turn in milliseconds */
+    turnTimeLimit: number;
 }
 
+export interface MrWhiteClue {
+    playerId: PlayerId;
+    text: string;
+}
 
+export type MrWhitePhase = 'CLUE_PHASE' | 'DISCUSSION_PHASE' | 'VOTING_PHASE' | 'GUESS_PHASE';
+
+export interface MrWhiteState extends BaseGameState {
+    gameType: 'MR_WHITE';
+    playerIds: PlayerId[];
+    phase: MrWhitePhase;
+    mrWhiteId: PlayerId;
+    word: string;
+    clues: MrWhiteClue[];
+    votes: Record<PlayerId, PlayerId>;
+    eliminatedPlayerId: PlayerId | null;
+    timeRemaining: number;
+    currentPlayerIndex: number;
+}
+
+export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState | MrWhiteState;
 
 export interface Room {
     id: RoomId;
@@ -192,9 +217,6 @@ export enum SocketEvent {
     MOTUS_GUESS = 'MOTUS_GUESS',
     SET_CHAINES = 'SET_CHAINES',
     GUESS_CHAINE = 'GUESS_CHAINE',
-    SUBMIT_CLUE = 'SUBMIT_CLUE',
-    SUBMIT_VOTE = 'SUBMIT_VOTE',
-    MR_WHITE_GUESS = 'MR_WHITE_GUESS',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
     // Server -> Client
@@ -208,26 +230,3 @@ export enum SocketEvent {
     PLAYER_DISCONNECTED = 'PLAYER_DISCONNECTED',
     ERROR = 'ERROR'
 }
-
-export type MrWhitePhase = 'CLUE_PHASE' | 'DISCUSSION_PHASE' | 'VOTING_PHASE' | 'GUESS_PHASE';
-
-export interface MrWhiteClue {
-    playerId: PlayerId;
-    text: string;
-}
-
-export interface MrWhiteState extends BaseGameState {
-    gameType: 'MR_WHITE';
-    playerIds: PlayerId[];
-    phase: MrWhitePhase;
-    mrWhiteId: PlayerId; // The ID of the player who is Mr White (masked for others)
-    word: string; // The secret word (masked for Mr White)
-    clues: MrWhiteClue[]; // List of clues submitted in the current round
-    votes: Record<PlayerId, PlayerId>; // Voter ID -> Voted Player ID
-    eliminatedPlayerId?: PlayerId | null; // ID of the player eliminated after voting
-    timeRemaining: number; // Time remaining for discussion/voting
-    currentPlayerIndex: number; // For turn-based clue submission
-}
-
-export type GameState = DotsAndBoxesState | MemoryGameState | FourChiffreState | WordGuesserState | MotusState | ChainesLogiqueState | MrWhiteState;
-

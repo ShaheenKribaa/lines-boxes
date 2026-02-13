@@ -12,6 +12,52 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
     const [secondaryWords, setSecondaryWords] = useState<string[]>(['']);
     const [guessInput, setGuessInput] = useState('');
     const [showMyWords, setShowMyWords] = useState(false);
+    const [timeLeft, setTimeLeft] = useState<number>(60);
+    
+    // Reset guess input when turn changes
+    React.useEffect(() => {
+        if (room?.gameData?.gameType === 'CHAINES_LOGIQUE') {
+            const state = room.gameData as ChainesLogiqueState;
+            const currentPlayerId = state.playerIds[state.currentPlayerIndex];
+            if (currentPlayerId !== playerId) {
+                setGuessInput(''); // Clear input when it's not our turn
+            }
+        }
+    }, [room?.gameData?.gameType, (room?.gameData as ChainesLogiqueState)?.currentPlayerIndex, playerId]);
+    
+    // Timer effect
+    React.useEffect(() => {
+        if (!room || !room.gameData || room.gameData.gameType !== 'CHAINES_LOGIQUE' || room.gameData.phase !== 'GUESSING') {
+            return;
+        }
+        
+        const state = room.gameData as ChainesLogiqueState;
+        const currentPlayerId = state.playerIds[state.currentPlayerIndex];
+        const isMyTurn = currentPlayerId === playerId;
+        
+        // Reset timer when it's not my turn or when turn changes
+        if (!isMyTurn) {
+            setTimeLeft(60);
+            return;
+        }
+        
+        // Only track timer for current player
+        if (!state.turnStartTime) {
+            setTimeLeft(60);
+            return;
+        }
+        
+        const updateTimer = () => {
+            const elapsed = Date.now() - state.turnStartTime!;
+            const remaining = Math.max(0, Math.floor((state.turnTimeLimit - elapsed) / 1000));
+            setTimeLeft(remaining);
+        };
+        
+        updateTimer(); // Initial update
+        const interval = setInterval(updateTimer, 1000);
+        
+        return () => clearInterval(interval);
+    }, [room, playerId]); // Removed state.currentPlayerIndex dependency
 
     if (!room || !room.gameData || room.gameData.gameType !== 'CHAINES_LOGIQUE') return null;
 
@@ -68,31 +114,57 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
 
     const getPlayerName = (id: string) => room.players.find((p) => p.id === id)?.name ?? 'Player';
 
-    const renderWordEntry = (entry: any, index: number, isRevealed: boolean) => (
-        <div
-            key={index}
-            style={{
-                padding: '0.6rem 0.75rem',
-                background: isRevealed ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-tertiary)',
-                borderRadius: '0.5rem',
-                borderLeft: isRevealed ? '3px solid var(--success)' : 'none',
-                marginBottom: '0.5rem'
-            }}
-        >
-            <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-                {isRevealed ? (
-                    <span style={{ letterSpacing: '0.1em' }}>{entry.word}</span>
-                ) : (
-                    <span>
-                        {entry.firstLetter}{'_'.repeat(entry.length - 1)}
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
-                            ({entry.length} letters)
+    const renderWordEntry = (entry: any, index: number, isRevealed: boolean) => {
+        // Determine how many letters to reveal
+        const revealedCount = entry.word ? entry.length : (entry.revealedLetters || 1);
+        const isPartiallyRevealed = revealedCount > 1 && !entry.word;
+        
+        return (
+            <div
+                key={index}
+                style={{
+                    padding: '0.6rem 0.75rem',
+                    background: entry.word ? 'rgba(16, 185, 129, 0.15)' : 
+                               isPartiallyRevealed ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-tertiary)',
+                    borderRadius: '0.5rem',
+                    borderLeft: entry.word ? '3px solid var(--success)' : 
+                               isPartiallyRevealed ? '3px solid var(--warning)' : 'none',
+                    marginBottom: '0.5rem'
+                }}
+            >
+                <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                    {entry.word ? (
+                        <span style={{ letterSpacing: '0.1em' }}>{entry.word}</span>
+                    ) : (
+                        <span>
+                            {entry.firstLetter}
+                            {Array.from({ length: entry.length - 1 }).map((_, i) => (
+                                <span key={i} style={{ 
+                                    opacity: i < (revealedCount - 1) ? 1 : 0.3,
+                                    color: i < (revealedCount - 1) ? 'inherit' : 'var(--text-muted)' 
+                                }}>
+                                    {i < (revealedCount - 1) ? entry.firstLetter.toLowerCase() : '_'}
+                                </span>
+                            ))}
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                                ({entry.length} letters)
+                            </span>
+                            {isPartiallyRevealed && (
+                                <span style={{ 
+                                    color: 'var(--warning)', 
+                                    fontSize: '0.8rem', 
+                                    marginLeft: '0.5rem',
+                                    fontStyle: 'italic'
+                                }}>
+                                    ({revealedCount} revealed)
+                                </span>
+                            )}
                         </span>
-                    </span>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="container" style={{ minHeight: '100vh', paddingTop: 'clamp(1rem, 2vw, 2rem)', paddingBottom: 'clamp(1rem, 2vw, 2rem)', width: '100%' }}>
@@ -220,6 +292,45 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    {/* Timer display */}
+                                    {state.phase === 'GUESSING' && (
+                                        <div style={{ 
+                                            marginTop: '0.75rem', 
+                                            padding: '0.75rem', 
+                                            background: timeLeft <= 10 ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-tertiary)',
+                                            borderRadius: '0.5rem',
+                                            border: timeLeft <= 10 ? '1px solid var(--error)' : 'none'
+                                        }}>
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'space-between',
+                                                fontSize: '0.9rem'
+                                            }}>
+                                                <span style={{ fontWeight: '600' }}>
+                                                    Time remaining:
+                                                </span>
+                                                <span style={{ 
+                                                    fontWeight: '700', 
+                                                    fontSize: '1.1rem',
+                                                    color: timeLeft <= 10 ? 'var(--error)' : 'var(--text-primary)'
+                                                }}>
+                                                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                                </span>
+                                            </div>
+                                            {timeLeft <= 10 && (
+                                                <div style={{ 
+                                                    fontSize: '0.8rem', 
+                                                    color: 'var(--error)', 
+                                                    marginTop: '0.25rem',
+                                                    fontWeight: '500'
+                                                }}>
+                                                    Hurry up!
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     {myPrincipalWord && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
                                             <BookOpen size={18} style={{ color: 'var(--text-muted)' }} />
@@ -255,7 +366,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                 </div>
 
                                 {/* Guess input */}
-                                {isMyTurn && (
+                                {isMyTurn ? (
                                     <div className="card">
                                         <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>
                                             Guess a word from {otherPlayer?.name}'s chain
@@ -271,19 +382,46 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                                     width: '100%',
                                                     padding: '1rem',
                                                     fontSize: '1.25rem',
-                                                    textAlign: 'center'
+                                                    textAlign: 'center',
+                                                    borderColor: timeLeft <= 5 ? 'var(--error)' : undefined
                                                 }}
                                                 autoComplete="off"
+                                                disabled={timeLeft <= 0}
                                             />
                                             <button
                                                 type="submit"
                                                 className="btn btn-primary"
-                                                disabled={guessInput.length < 2}
+                                                disabled={guessInput.length < 2 || timeLeft <= 0}
                                                 style={{ width: '100%', marginTop: '0.75rem', padding: '0.75rem' }}
                                             >
-                                                <Send size={18} /> Submit Guess
+                                                <Send size={18} /> {timeLeft <= 0 ? 'Time Expired' : 'Submit Guess'}
                                             </button>
                                         </form>
+                                    </div>
+                                ) : (
+                                    <div className="card" style={{ 
+                                        background: 'var(--bg-tertiary)', 
+                                        textAlign: 'center',
+                                        padding: '1.5rem'
+                                    }}>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                                            Waiting for {currentPlayer?.name}'s turn
+                                        </div>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                            {timeLeft <= 0 ? '⏰ Time expired, passing turn...' : `Time left: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2, '0')}`}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Show timer expired message for non-current player */}
+                                {!isMyTurn && timeLeft <= 0 && (
+                                    <div className="card" style={{ 
+                                        background: 'rgba(239, 68, 68, 0.15)', 
+                                        border: '1px solid var(--error)' 
+                                    }}>
+                                        <div style={{ textAlign: 'center', color: 'var(--error)', fontWeight: '600' }}>
+                                            ⏰ {currentPlayer?.name}'s time has expired!
+                                        </div>
                                     </div>
                                 )}
 
