@@ -247,7 +247,7 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
-        const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang, chainesCount } = data.settings || {};
+        const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang, chainesCount, timerDuration } = data.settings || {};
         if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS', 'CHAINES_LOGIQUE', 'MR_WHITE'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
@@ -301,6 +301,13 @@ export class RoomManager {
             const n = Number(chainesCount);
             if (!Number.isNaN(n) && n >= 3 && n <= 10) {
                 room.settings.chainesCount = n;
+            }
+        }
+        
+        if (timerDuration !== undefined && room.settings.gameType === 'CHAINES_LOGIQUE') {
+            const duration = Number(timerDuration);
+            if (!Number.isNaN(duration) && [60, 120, 180].includes(duration)) {
+                room.settings.timerDuration = duration;
             }
         }
 
