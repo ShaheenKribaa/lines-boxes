@@ -23,6 +23,11 @@ export const Landing: React.FC = () => {
 
     // Navigate to room when room is set
     useEffect(() => {
+        // If the previous room is finished, clear it so the user can start fresh
+        if (room && room.status === 'ENDED') {
+            useGameStore.getState().setRoom(null);
+            return;
+        }
         if (room) {
             navigate(`/room/${room.code}`);
         }

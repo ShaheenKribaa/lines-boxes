@@ -22,24 +22,36 @@ const roomManager = new RoomManager(io);
 
 const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
-// Authenticate Socket.IO connections via Supabase JWT
+// Authenticate Socket.IO connections via Supabase JWT (guests allowed without token)
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
-        return next(new Error('Authentication required'));
+        // Guest connection — allow but mark as guest
+        socket.data.userId = null;
+        socket.data.email = null;
+        socket.data.isGuest = true;
+        return next();
     }
     if (!SUPABASE_JWT_SECRET) {
         console.warn('SUPABASE_JWT_SECRET not set — skipping JWT verification');
+        socket.data.isGuest = false;
         return next();
     }
     try {
-        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET) as jwt.JwtPayload;
+        const decoded = jwt.verify(token, SUPABASE_JWT_SECRET, {
+            algorithms: ['HS256']
+        }) as jwt.JwtPayload;
         socket.data.userId = decoded.sub;
         socket.data.email = decoded.email;
+        socket.data.isGuest = false;
         next();
-    } catch (err) {
-        console.error('JWT verification failed:', err);
-        next(new Error('Invalid or expired token'));
+    } catch (err: any) {
+        console.warn('JWT verification failed, allowing as guest:', err.message);
+        // Allow connection but treat as guest instead of rejecting
+        socket.data.userId = null;
+        socket.data.email = null;
+        socket.data.isGuest = true;
+        next();
     }
 });
 

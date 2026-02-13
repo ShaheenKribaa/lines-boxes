@@ -22,14 +22,15 @@ import { SeaBattleGameBoard, SeaBattleGameOver } from './games/sea-battle';
 function RoomPage() {
     const { roomCode } = useParams<{ roomCode: string }>();
     const { room, setError, session } = useGameStore();
+    const isGuest = useGameStore((s) => s.isGuest);
     const navigate = useNavigate();
 
-    // Redirect to auth if not logged in
+    // Redirect to auth if not logged in and not a guest
     useEffect(() => {
-        if (!session) {
+        if (!session && !isGuest) {
             navigate('/auth');
         }
-    }, [session, navigate]);
+    }, [session, isGuest, navigate]);
 
     useEffect(() => {
         // If we have a room code in URL but no room in state, try to rejoin (e.g. after page reload)
@@ -111,9 +112,9 @@ function RoomPage() {
     return null;
 }
 
-/** Protected route wrapper — redirects to /auth if not logged in */
+/** Protected route wrapper — redirects to /auth if not logged in or not a guest */
 function RequireAuth({ children }: { children: React.ReactElement }) {
-    const { session, authLoading } = useGameStore();
+    const { session, authLoading, isGuest } = useGameStore();
 
     if (authLoading) {
         return (
@@ -127,11 +128,21 @@ function RequireAuth({ children }: { children: React.ReactElement }) {
         );
     }
 
-    if (!session) {
+    if (!session && !isGuest) {
         return <Navigate to="/auth" replace />;
     }
 
     return children;
+}
+
+/** Connect as guest (no auth token) */
+export function connectGuest() {
+    const store = useGameStore.getState();
+    store.setIsGuest(true);
+    // Connect socket without a token
+    const s = socket;
+    setupSocketListeners(s);
+    s.connect();
 }
 
 function App() {
@@ -158,19 +169,20 @@ function App() {
         });
 
         // Listen for auth state changes (login, logout, token refresh)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             const s = useGameStore.getState();
             s.setSession(session);
             s.setUser(session?.user ?? null);
 
-            if (session?.access_token) {
+            // Only reconnect socket on actual sign-in/sign-out, not on token refresh
+            if (event === 'SIGNED_IN' && session?.access_token && !socketInitialized.current) {
                 const newSocket = connectWithToken(session.access_token);
                 newSocket.connect();
                 s.setPlayerId(newSocket.id ?? null);
                 setupSocketListeners(newSocket);
                 socketInitialized.current = true;
-            } else if (socketInitialized.current) {
-                // Logged out — disconnect socket
+            } else if (event === 'SIGNED_OUT' && socketInitialized.current && !s.isGuest) {
+                // Logged out (not a guest) — disconnect socket
                 socket.disconnect();
                 s.setRoom(null);
                 s.setPlayerId(null);

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useGameStore } from '../store';
-import { Gamepad2, LogIn, UserPlus, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { connectGuest } from '../App';
+import { Gamepad2, LogIn, UserPlus, Mail, Lock, Eye, EyeOff, UserCircle } from 'lucide-react';
 
 export const AuthPage: React.FC = () => {
     const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -79,6 +80,11 @@ export const AuthPage: React.FC = () => {
         if (error) {
             setError(error.message);
         }
+    };
+
+    const handleGuestLogin = () => {
+        connectGuest();
+        navigate('/');
     };
 
     return (
@@ -251,9 +257,30 @@ export const AuthPage: React.FC = () => {
                             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
                         </button>
                     </div>
+
+                    <div style={{ position: 'relative', textAlign: 'center', margin: '1.5rem 0 1rem' }}>
+                        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'var(--border-color)' }}></div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleGuestLogin}
+                        style={{
+                            width: '100%', padding: '0.75rem', borderRadius: '0.75rem',
+                            border: '1px dashed var(--border-color)', background: 'transparent',
+                            color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', gap: '0.5rem',
+                            transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-secondary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                    >
+                        <UserCircle size={18} />
+                        Continue as Guest
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
-
