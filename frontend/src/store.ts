@@ -32,12 +32,14 @@ interface GameStore {
     user: User | null;
     session: Session | null;
     authLoading: boolean;
+    isGuest: boolean;
     setRoom: (room: Room | null) => void;
     setPlayerId: (id: string | null) => void;
     setError: (error: string | null) => void;
     setUser: (user: User | null) => void;
     setSession: (session: Session | null) => void;
     setAuthLoading: (loading: boolean) => void;
+    setIsGuest: (isGuest: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -47,10 +49,12 @@ export const useGameStore = create<GameStore>((set) => ({
     user: null,
     session: null,
     authLoading: true,
+    isGuest: false,
     setRoom: (room) => set({ room }),
     setPlayerId: (id) => set({ playerId: id }),
     setError: (error) => set({ error }),
     setUser: (user) => set({ user }),
     setSession: (session) => set({ session }),
     setAuthLoading: (authLoading) => set({ authLoading }),
+    setIsGuest: (isGuest) => set({ isGuest }),
 }));
