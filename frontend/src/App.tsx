@@ -18,6 +18,8 @@ import './index.css';
 import { MrWhiteGameOver } from './games/mr-white/MrWhiteGameOver';
 import { MrWhiteGameBoard } from './games/mr-white/MrWhiteGameBoard';
 import { SeaBattleGameBoard, SeaBattleGameOver } from './games/sea-battle';
+import { FriendSystem } from './components/FriendSystem';
+import { RoomInvitationToast } from './components/RoomInvitationToast';
 
 function RoomPage() {
     const { roomCode } = useParams<{ roomCode: string }>();
@@ -195,12 +197,63 @@ function App() {
         };
     }, []);
 
+    useEffect(() => {
+        const onConnect = () => {
+            // Check if we are physically connected
+            console.log('Socket connected/reconnected');
+
+            // If we think we are in a room, we must tell the server we are back!
+            // Otherwise the server sees a new socket ID that isn't in any room.
+            const { room, user } = useGameStore.getState();
+            if (room) {
+                console.log('Rejoining room after reconnection:', room.code);
+                socket.emit(SocketEvent.JOIN_ROOM, {
+                    code: room.code,
+                    name: user?.email?.split('@')[0] || localStorage.getItem('playerName') || 'Player',
+                    clientId: getClientId(),
+                    avatar: getSavedAvatar()
+                });
+            }
+        };
+
+        socket.on('connect', onConnect);
+
+        return () => {
+            socket.off('connect', onConnect);
+        };
+    }, []);
+
+    const { pendingInvitation, setPendingInvitation } = useGameStore();
+
+    const handleAcceptInvite = () => {
+        if (pendingInvitation) {
+            socket.emit(SocketEvent.JOIN_ROOM, {
+                code: pendingInvitation.roomCode,
+                name: useGameStore.getState().user?.email?.split('@')[0] || 'Player'
+            });
+            setPendingInvitation(null);
+            // It will redirect automatically via the existing useEffect that watches 'room'
+        }
+    };
+
     return (
-        <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/" element={<RequireAuth><Landing /></RequireAuth>} />
-            <Route path="/room/:roomCode" element={<RequireAuth><RoomPage /></RequireAuth>} />
-        </Routes>
+        <>
+            <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/" element={<RequireAuth><Landing /></RequireAuth>} />
+                <Route path="/room/:roomCode" element={<RequireAuth><RoomPage /></RequireAuth>} />
+            </Routes>
+
+            <FriendSystem />
+
+            {pendingInvitation && (
+                <RoomInvitationToast
+                    invitation={pendingInvitation}
+                    onAccept={handleAcceptInvite}
+                    onDecline={() => setPendingInvitation(null)}
+                />
+            )}
+        </>
     );
 }
 
@@ -230,6 +283,39 @@ function setupSocketListeners(sock: ReturnType<typeof connectWithToken>) {
     sock.on(SocketEvent.ERROR, (message) => {
         console.log('Socket error:', message);
         useGameStore.getState().setError(message);
+    });
+
+    // Friend System Events
+    sock.on(SocketEvent.FRIENDS_LIST, (friends) => {
+        useGameStore.getState().setFriends(friends);
+    });
+
+    sock.on(SocketEvent.FRIEND_REQUESTS_LIST, (requests) => {
+        useGameStore.getState().setFriendRequests(requests);
+    });
+
+    sock.on(SocketEvent.SEARCH_RESULTS, (results) => {
+        useGameStore.getState().setSearchResults(results);
+    });
+
+    sock.on(SocketEvent.FRIEND_REQUEST_RECEIVED, () => {
+        // Optimistically add to requests list or just re-fetch
+        // Let's re-fetch to be safe and get full object structure if needed, 
+        // OR construct it. The server sends profile, we need FriendRequest object.
+        // Actually server usually sends just the notification. 
+        // Let's just trigger a fetch.
+        sock.emit(SocketEvent.GET_FRIEND_REQUESTS);
+        // Also maybe show a small dot/notification? The store update will handle the badge.
+    });
+
+    sock.on(SocketEvent.FRIEND_REQUEST_UPDATED, () => {
+        // Refresh both lists
+        sock.emit(SocketEvent.GET_FRIENDS);
+        sock.emit(SocketEvent.GET_FRIEND_REQUESTS);
+    });
+
+    sock.on(SocketEvent.ROOM_INVITATION, (invitation) => {
+        useGameStore.getState().setPendingInvitation(invitation);
     });
 }
 

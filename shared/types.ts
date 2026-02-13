@@ -268,6 +268,15 @@ export enum SocketEvent {
     FIRE_SHOT = 'FIRE_SHOT',
     LEAVE_ROOM = 'LEAVE_ROOM',
 
+    // Friend system (Client -> Server)
+    SEARCH_PLAYERS = 'SEARCH_PLAYERS',
+    SEND_FRIEND_REQUEST = 'SEND_FRIEND_REQUEST',
+    ACCEPT_FRIEND_REQUEST = 'ACCEPT_FRIEND_REQUEST',
+    DECLINE_FRIEND_REQUEST = 'DECLINE_FRIEND_REQUEST',
+    GET_FRIENDS = 'GET_FRIENDS',
+    GET_FRIEND_REQUESTS = 'GET_FRIEND_REQUESTS',
+    INVITE_TO_ROOM = 'INVITE_TO_ROOM',
+
     // Server -> Client
     ROOM_UPDATED = 'ROOM_UPDATED',
     GAME_STARTED = 'GAME_STARTED',
@@ -277,5 +286,35 @@ export enum SocketEvent {
     TURN_CHANGED = 'TURN_CHANGED',
     GAME_ENDED = 'GAME_ENDED',
     PLAYER_DISCONNECTED = 'PLAYER_DISCONNECTED',
-    ERROR = 'ERROR'
+    ERROR = 'ERROR',
+
+    // Friend system (Server -> Client)
+    SEARCH_RESULTS = 'SEARCH_RESULTS',
+    FRIEND_REQUEST_RECEIVED = 'FRIEND_REQUEST_RECEIVED',
+    FRIEND_REQUEST_UPDATED = 'FRIEND_REQUEST_UPDATED',
+    FRIENDS_LIST = 'FRIENDS_LIST',
+    FRIEND_REQUESTS_LIST = 'FRIEND_REQUESTS_LIST',
+    ROOM_INVITATION = 'ROOM_INVITATION'
+}
+
+// Friend system interfaces
+export interface UserProfile {
+    id: string;
+    display_name: string;
+    avatar: string | null;
+    is_online?: boolean;
+}
+
+export interface FriendRequest {
+    id: string;
+    from_user: UserProfile;
+    to_user: UserProfile;
+    status: 'pending' | 'accepted' | 'declined';
+    created_at: string;
+}
+
+export interface RoomInvitation {
+    from: UserProfile;
+    roomCode: string;
+    gameType: string;
 }

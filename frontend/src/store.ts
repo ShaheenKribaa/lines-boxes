@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Room } from '../../shared/types';
+import type { Room, UserProfile, FriendRequest, RoomInvitation } from '../../shared/types';
 import type { User, Session } from '@supabase/supabase-js';
 
 const CLIENT_ID_KEY = 'game_client_id';
@@ -40,6 +40,14 @@ interface GameStore {
     setSession: (session: Session | null) => void;
     setAuthLoading: (loading: boolean) => void;
     setIsGuest: (isGuest: boolean) => void;
+    friends: UserProfile[];
+    friendRequests: FriendRequest[];
+    searchResults: UserProfile[];
+    pendingInvitation: RoomInvitation | null;
+    setFriends: (friends: UserProfile[]) => void;
+    setFriendRequests: (requests: FriendRequest[]) => void;
+    setSearchResults: (results: UserProfile[]) => void;
+    setPendingInvitation: (invitation: RoomInvitation | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -50,6 +58,10 @@ export const useGameStore = create<GameStore>((set) => ({
     session: null,
     authLoading: true,
     isGuest: false,
+    friends: [],
+    friendRequests: [],
+    searchResults: [],
+    pendingInvitation: null,
     setRoom: (room) => set({ room }),
     setPlayerId: (id) => set({ playerId: id }),
     setError: (error) => set({ error }),
@@ -57,4 +69,8 @@ export const useGameStore = create<GameStore>((set) => ({
     setSession: (session) => set({ session }),
     setAuthLoading: (authLoading) => set({ authLoading }),
     setIsGuest: (isGuest) => set({ isGuest }),
+    setFriends: (friends) => set({ friends }),
+    setFriendRequests: (friendRequests) => set({ friendRequests }),
+    setSearchResults: (searchResults) => set({ searchResults }),
+    setPendingInvitation: (pendingInvitation) => set({ pendingInvitation }),
 }));

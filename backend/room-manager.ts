@@ -103,6 +103,10 @@ export class RoomManager {
         }
     }
 
+    getRoomByCode(code: string): Room | undefined {
+        return Array.from(this.rooms.values()).find(r => r.code === code);
+    }
+
     createRoom(socket: Socket, data: { settings: RoomSettings; name?: string; clientId?: string; avatar?: string }) {
         const roomId = uuidv4();
         const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -217,6 +221,7 @@ export class RoomManager {
             socket.join(room.id);
 
             // Notify all players in the room
+            console.log(`[Room ${room.id}] Player ${existingPlayer.name} reconnected. Sending room state with gameType: ${room.settings.gameType}`);
             this.io.to(room.id).emit(SocketEvent.ROOM_UPDATED, room);
             return;
         }
@@ -251,6 +256,7 @@ export class RoomManager {
         if (!room || room.hostId !== socket.id || room.status !== 'LOBBY') return;
 
         const { gameType, gridSize, maxPlayers, pairCount, secretSize, motusLang, chainesCount, timerDuration } = data.settings || {};
+        console.log(`[Room ${roomId}] Updating settings:`, data.settings);
         if (gameType !== undefined && ['DOTS_AND_BOXES', 'MEMORY', 'FOUR_CHIFFRE', 'WORD_GUESSER', 'MOTUS', 'CHAINES_LOGIQUE', 'MR_WHITE', 'SEA_BATTLE'].includes(gameType)) {
             room.settings.gameType = gameType as GameType;
             if ((gameType as GameType) === 'FOUR_CHIFFRE') {
