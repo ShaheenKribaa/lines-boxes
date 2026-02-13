@@ -23,6 +23,7 @@ export interface RoomSettings {
     secretSize?: number; // 4, 5, or 6 digits for FOUR_CHIFFRE
     motusLang?: 'en' | 'fr'; // language for MOTUS (Wiktionary host)
     chainesCount?: number; // number of secondary words for CHAINES_LOGIQUE
+    timerDuration?: number; // timer duration in seconds for CHAINES_LOGIQUE (60, 120, or 180)
 }
 
 export type GameStatus = 'LOBBY' | 'CHOOSING_FIRST' | 'PLAYING' | 'ENDED';

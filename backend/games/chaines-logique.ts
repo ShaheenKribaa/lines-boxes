@@ -11,7 +11,10 @@ function getChainesCount(settings: RoomSettings): number {
     return n >= 3 && n <= 10 ? n : 5;
 }
 
-const TURN_TIME_LIMIT_MS = 60000; // 60 seconds
+function getTimerDuration(settings: RoomSettings): number {
+    const duration = settings.timerDuration ?? 60;
+    return [60, 120, 180].includes(duration) ? duration : 60;
+}
 
 function isValidWord(word: string): boolean {
     return typeof word === 'string' && word.length >= 2 && word.length <= 20 && /^[a-zA-Z]+$/.test(word);
@@ -25,6 +28,8 @@ export class ChainesLogiqueGame {
 
     constructor(playerIds: PlayerId[], settings: RoomSettings, existingState?: ChainesLogiqueState) {
         this.chainesCount = getChainesCount(settings);
+        const timerDuration = getTimerDuration(settings) * 1000; // Convert to milliseconds
+        
         if (existingState) {
             this.state = existingState;
             // full words are not in state; must be passed separately by room-manager
@@ -58,7 +63,7 @@ export class ChainesLogiqueGame {
                 guessHistory: [],
                 currentPlayerIndex: 0,
                 chainesCount: this.chainesCount,
-                turnTimeLimit: TURN_TIME_LIMIT_MS
+                turnTimeLimit: timerDuration
             };
         }
     }

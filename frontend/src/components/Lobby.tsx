@@ -17,6 +17,11 @@ const isChainesLogique = (room: { settings: { gameType?: string } }) => room.set
 const isMrWhite = (room: { settings: { gameType?: string } }) => room.settings.gameType === 'MR_WHITE';
 const PAIR_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30, 40] as const;
 const CHAINES_COUNT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10] as const;
+const TIMER_DURATION_OPTIONS = [
+    { value: 60, label: '1 minute' },
+    { value: 120, label: '2 minutes' },
+    { value: 180, label: '3 minutes' }
+] as const;
 
 export const Lobby: React.FC = () => {
     const { room, playerId } = useGameStore();
@@ -41,7 +46,7 @@ export const Lobby: React.FC = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number; motusLang?: string; chainesCount?: number }) => {
+    const handleSettingsChange = (updates: { gridSize?: number; maxPlayers?: number; gameType?: string; pairCount?: number; secretSize?: number; motusLang?: string; chainesCount?: number; timerDuration?: number }) => {
         if (!isHost) return;
         socket.emit(SocketEvent.UPDATE_ROOM_SETTINGS, { settings: updates });
     };
@@ -98,7 +103,7 @@ export const Lobby: React.FC = () => {
                                                     : g.id === 'MOTUS'
                                                         ? { motusLang: room.settings.motusLang ?? 'en' }
                                                         : g.id === 'CHAINES_LOGIQUE'
-                                                            ? { maxPlayers: 2, chainesCount: 5 }
+                                                            ? { maxPlayers: 2, chainesCount: 5, timerDuration: 60 }
                                                             : g.id === 'MR_WHITE'
                                                                 ? { maxPlayers: Math.max(4, room.players.length) }
                                                                 : {}
@@ -208,32 +213,60 @@ export const Lobby: React.FC = () => {
                                 )}
                             </div>
                         ) : isChainesLogique(room) ? (
-                            <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
-                                <label htmlFor="chaines-count" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                                    <Settings size={16} />
-                                    Number of words per player
-                                </label>
-                                {isHost ? (
-                                    <select
-                                        id="chaines-count"
-                                        className="input"
-                                        value={room.settings.chainesCount ?? 5}
-                                        onChange={(e) => {
-                                            const v = Number(e.target.value);
-                                            if (CHAINES_COUNT_OPTIONS.includes(v as any)) handleSettingsChange({ chainesCount: v });
-                                        }}
-                                        style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
-                                    >
-                                        {CHAINES_COUNT_OPTIONS.map((n) => (
-                                            <option key={n} value={n}>{n} words</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
-                                        {room.settings.chainesCount ?? 5} words
-                                    </div>
-                                )}
-                            </div>
+                            <>
+                                <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                                    <label htmlFor="chaines-count" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                        <Settings size={16} />
+                                        Number of words per player
+                                    </label>
+                                    {isHost ? (
+                                        <select
+                                            id="chaines-count"
+                                            className="input"
+                                            value={room.settings.chainesCount ?? 5}
+                                            onChange={(e) => {
+                                                const v = Number(e.target.value);
+                                                if (CHAINES_COUNT_OPTIONS.includes(v as any)) handleSettingsChange({ chainesCount: v });
+                                            }}
+                                            style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                        >
+                                            {CHAINES_COUNT_OPTIONS.map((n) => (
+                                                <option key={n} value={n}>{n} words</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                            {room.settings.chainesCount ?? 5} words
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
+                                    <label htmlFor="timer-duration" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                        <Settings size={16} />
+                                        Turn Duration
+                                    </label>
+                                    {isHost ? (
+                                        <select
+                                            id="timer-duration"
+                                            className="input"
+                                            value={room.settings.timerDuration ?? 60}
+                                            onChange={(e) => {
+                                                const v = Number(e.target.value);
+                                                if ([60, 120, 180].includes(v)) handleSettingsChange({ timerDuration: v });
+                                            }}
+                                            style={{ width: '100%', padding: '0.5rem', fontSize: '1rem', fontWeight: '600' }}
+                                        >
+                                            {TIMER_DURATION_OPTIONS.map((option) => (
+                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>
+                                            {TIMER_DURATION_OPTIONS.find(o => o.value === (room.settings.timerDuration ?? 60))?.label ?? '1 minute'}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         ) : isMrWhite(room) ? (
                             <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
