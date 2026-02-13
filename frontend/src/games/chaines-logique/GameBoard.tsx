@@ -13,7 +13,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
     const [guessInput, setGuessInput] = useState('');
     const [showMyWords, setShowMyWords] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number>(60);
-    
+
     // Reset guess input when turn changes
     React.useEffect(() => {
         if (room?.gameData?.gameType === 'CHAINES_LOGIQUE') {
@@ -24,38 +24,38 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
             }
         }
     }, [room?.gameData?.gameType, (room?.gameData as ChainesLogiqueState)?.currentPlayerIndex, playerId]);
-    
+
     // Timer effect
     React.useEffect(() => {
         if (!room || !room.gameData || room.gameData.gameType !== 'CHAINES_LOGIQUE' || room.gameData.phase !== 'GUESSING') {
             return;
         }
-        
+
         const state = room.gameData as ChainesLogiqueState;
         const currentPlayerId = state.playerIds[state.currentPlayerIndex];
         const isMyTurn = currentPlayerId === playerId;
-        
+
         // Reset timer when it's not my turn or when turn changes
         if (!isMyTurn) {
             setTimeLeft(60);
             return;
         }
-        
+
         // Only track timer for current player
         if (!state.turnStartTime) {
             setTimeLeft(60);
             return;
         }
-        
+
         const updateTimer = () => {
             const elapsed = Date.now() - state.turnStartTime!;
             const remaining = Math.max(0, Math.floor((state.turnTimeLimit - elapsed) / 1000));
             setTimeLeft(remaining);
         };
-        
+
         updateTimer(); // Initial update
         const interval = setInterval(updateTimer, 1000);
-        
+
         return () => clearInterval(interval);
     }, [room, playerId]); // Removed state.currentPlayerIndex dependency
 
@@ -90,9 +90,9 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
         e.preventDefault();
         const principal = principalWord.trim();
         const secondaries = secondaryWords.map(w => w.trim()).filter(w => w.length > 0);
-        
-        if (principal.length >= 2 && principal.length <= 20 && 
-            secondaries.length === chainesCount && 
+
+        if (principal.length >= 2 && principal.length <= 20 &&
+            secondaries.length === chainesCount &&
             secondaries.every(w => w.length >= 2 && w.length <= 20)) {
             socket.emit(SocketEvent.SET_CHAINES, {
                 principalWord: principal,
@@ -114,21 +114,21 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
 
     const getPlayerName = (id: string) => room.players.find((p) => p.id === id)?.name ?? 'Player';
 
-    const renderWordEntry = (entry: any, index: number, isRevealed: boolean) => {
+    const renderWordEntry = (entry: any, index: number, _isRevealed: boolean) => {
         // Determine how many letters to reveal
         const revealedCount = entry.word ? entry.length : (entry.revealedLetters || 1);
         const isPartiallyRevealed = revealedCount > 1 && !entry.word;
-        
+
         return (
             <div
                 key={index}
                 style={{
                     padding: '0.6rem 0.75rem',
-                    background: entry.word ? 'rgba(16, 185, 129, 0.15)' : 
-                               isPartiallyRevealed ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-tertiary)',
+                    background: entry.word ? 'rgba(16, 185, 129, 0.15)' :
+                        isPartiallyRevealed ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-tertiary)',
                     borderRadius: '0.5rem',
-                    borderLeft: entry.word ? '3px solid var(--success)' : 
-                               isPartiallyRevealed ? '3px solid var(--warning)' : 'none',
+                    borderLeft: entry.word ? '3px solid var(--success)' :
+                        isPartiallyRevealed ? '3px solid var(--warning)' : 'none',
                     marginBottom: '0.5rem'
                 }}
             >
@@ -139,9 +139,9 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                         <span>
                             {entry.firstLetter}
                             {Array.from({ length: entry.length - 1 }).map((_, i) => (
-                                <span key={i} style={{ 
+                                <span key={i} style={{
                                     opacity: i < (revealedCount - 1) ? 1 : 0.3,
-                                    color: i < (revealedCount - 1) ? 'inherit' : 'var(--text-muted)' 
+                                    color: i < (revealedCount - 1) ? 'inherit' : 'var(--text-muted)'
                                 }}>
                                     {i < (revealedCount - 1) ? entry.firstLetter.toLowerCase() : '_'}
                                 </span>
@@ -150,9 +150,9 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                 ({entry.length} letters)
                             </span>
                             {isPartiallyRevealed && (
-                                <span style={{ 
-                                    color: 'var(--warning)', 
-                                    fontSize: '0.8rem', 
+                                <span style={{
+                                    color: 'var(--warning)',
+                                    fontSize: '0.8rem',
                                     marginLeft: '0.5rem',
                                     fontStyle: 'italic'
                                 }}>
@@ -184,7 +184,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
                             Choose {chainesCount} words related to your theme. Your theme word will be revealed to both players.
                         </p>
-                        
+
                         {!myWordsSet ? (
                             <form onSubmit={handleSubmitWords}>
                                 <div style={{ marginBottom: '1rem' }}>
@@ -205,7 +205,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                         autoComplete="off"
                                     />
                                 </div>
-                                
+
                                 <div style={{ marginBottom: '1rem' }}>
                                     <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
                                         Related Words ({chainesCount} required):
@@ -228,7 +228,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                                
+
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
@@ -255,10 +255,10 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                             {/* Left side - First player words */}
                             <div className="card" style={{ flex: 1, minWidth: '250px' }}>
-                                <div style={{ 
-                                    fontSize: '0.9rem', 
-                                    fontWeight: '600', 
-                                    marginBottom: '0.75rem', 
+                                <div style={{
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    marginBottom: '0.75rem',
                                     color: 'var(--text-secondary)',
                                     textAlign: 'center',
                                     padding: '0.5rem',
@@ -273,7 +273,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    {state.secondaryWords[state.playerIds[0]]?.map((entry, index) => 
+                                    {state.secondaryWords[state.playerIds[0]]?.map((entry, index) =>
                                         renderWordEntry(entry, index, state.revealedWords[state.playerIds[0]][index])
                                     )}
                                 </div>
@@ -292,27 +292,27 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Timer display */}
                                     {state.phase === 'GUESSING' && (
-                                        <div style={{ 
-                                            marginTop: '0.75rem', 
-                                            padding: '0.75rem', 
+                                        <div style={{
+                                            marginTop: '0.75rem',
+                                            padding: '0.75rem',
                                             background: timeLeft <= 10 ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-tertiary)',
                                             borderRadius: '0.5rem',
                                             border: timeLeft <= 10 ? '1px solid var(--error)' : 'none'
                                         }}>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
                                                 justifyContent: 'space-between',
                                                 fontSize: '0.9rem'
                                             }}>
                                                 <span style={{ fontWeight: '600' }}>
                                                     Time remaining:
                                                 </span>
-                                                <span style={{ 
-                                                    fontWeight: '700', 
+                                                <span style={{
+                                                    fontWeight: '700',
                                                     fontSize: '1.1rem',
                                                     color: timeLeft <= 10 ? 'var(--error)' : 'var(--text-primary)'
                                                 }}>
@@ -320,9 +320,9 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                                 </span>
                                             </div>
                                             {timeLeft <= 10 && (
-                                                <div style={{ 
-                                                    fontSize: '0.8rem', 
-                                                    color: 'var(--error)', 
+                                                <div style={{
+                                                    fontSize: '0.8rem',
+                                                    color: 'var(--error)',
                                                     marginTop: '0.25rem',
                                                     fontWeight: '500'
                                                 }}>
@@ -399,8 +399,8 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                         </form>
                                     </div>
                                 ) : (
-                                    <div className="card" style={{ 
-                                        background: 'var(--bg-tertiary)', 
+                                    <div className="card" style={{
+                                        background: 'var(--bg-tertiary)',
                                         textAlign: 'center',
                                         padding: '1.5rem'
                                     }}>
@@ -408,16 +408,16 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                             Waiting for {currentPlayer?.name}'s turn
                                         </div>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                            {timeLeft <= 0 ? '⏰ Time expired, passing turn...' : `Time left: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2, '0')}`}
+                                            {timeLeft <= 0 ? '⏰ Time expired, passing turn...' : `Time left: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`}
                                         </div>
                                     </div>
                                 )}
-                                
+
                                 {/* Show timer expired message for non-current player */}
                                 {!isMyTurn && timeLeft <= 0 && (
-                                    <div className="card" style={{ 
-                                        background: 'rgba(239, 68, 68, 0.15)', 
-                                        border: '1px solid var(--error)' 
+                                    <div className="card" style={{
+                                        background: 'rgba(239, 68, 68, 0.15)',
+                                        border: '1px solid var(--error)'
                                     }}>
                                         <div style={{ textAlign: 'center', color: 'var(--error)', fontWeight: '600' }}>
                                             ⏰ {currentPlayer?.name}'s time has expired!
@@ -457,10 +457,10 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
 
                             {/* Right side - Second player words */}
                             <div className="card" style={{ flex: 1, minWidth: '250px' }}>
-                                <div style={{ 
-                                    fontSize: '0.9rem', 
-                                    fontWeight: '600', 
-                                    marginBottom: '0.75rem', 
+                                <div style={{
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    marginBottom: '0.75rem',
                                     color: 'var(--text-secondary)',
                                     textAlign: 'center',
                                     padding: '0.5rem',
@@ -475,7 +475,7 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    {state.secondaryWords[state.playerIds[1]]?.map((entry, index) => 
+                                    {state.secondaryWords[state.playerIds[1]]?.map((entry, index) =>
                                         renderWordEntry(entry, index, state.revealedWords[state.playerIds[1]][index])
                                     )}
                                 </div>
