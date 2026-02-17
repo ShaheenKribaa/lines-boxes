@@ -170,16 +170,16 @@ export class ChainesLogiqueGame {
             throw new Error('Opponent words not set');
         }
 
-        // Check if word matches any unrevealed word
+        // Only check the first unrevealed word (sequential order)
         let foundMatch = false;
         let matchedIndex = -1;
 
-        for (let i = 0; i < targetWords.length; i++) {
-            if (!this.state.revealedWords[otherPlayerId][i] && targetWords[i] === guessUpper) {
-                foundMatch = true;
-                matchedIndex = i;
-                break;
-            }
+        // Find the first unrevealed word index
+        const firstUnrevealedIndex = this.state.revealedWords[otherPlayerId].findIndex(r => !r);
+
+        if (firstUnrevealedIndex !== -1 && targetWords[firstUnrevealedIndex] === guessUpper) {
+            foundMatch = true;
+            matchedIndex = firstUnrevealedIndex;
         }
 
         // Debug logging

@@ -89,6 +89,32 @@ export class RoomManager {
                 };
                 state.guessHistory.push(entry);
 
+                // Reveal one more letter from the first unrevealed word of the OTHER player
+                // (same logic as an incorrect guess — penalty for running out of time)
+                const targetWordEntries = state.secondaryWords[otherPlayerId];
+                const revealedStatus = state.revealedWords[otherPlayerId];
+                const fullWords = words[otherPlayerId];
+
+                if (targetWordEntries && revealedStatus && fullWords) {
+                    let wordToRevealIndex = -1;
+                    for (let i = 0; i < revealedStatus.length; i++) {
+                        if (!revealedStatus[i]) {
+                            wordToRevealIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (wordToRevealIndex !== -1 && targetWordEntries[wordToRevealIndex]) {
+                        const currentRevealed = targetWordEntries[wordToRevealIndex].revealedLetters || 1;
+                        const fullWord = fullWords[wordToRevealIndex];
+                        if (fullWord && currentRevealed < fullWord.length) {
+                            const newRevealed = currentRevealed + 1;
+                            targetWordEntries[wordToRevealIndex].revealedLetters = newRevealed;
+                            targetWordEntries[wordToRevealIndex].revealedChars = fullWord.substring(0, newRevealed);
+                        }
+                    }
+                }
+
                 // Switch to next player
                 state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.playerIds.length;
                 state.turnStartTime = Date.now();
