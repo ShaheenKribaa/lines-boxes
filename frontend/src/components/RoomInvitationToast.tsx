@@ -1,4 +1,3 @@
-import React from 'react';
 import { RoomInvitation } from '../../../shared/types';
 
 interface Props {
