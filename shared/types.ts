@@ -138,6 +138,7 @@ export interface ChaineWordEntry {
     length: number;
     word?: string; // revealed only when guessed correctly
     revealedLetters?: number; // number of letters to reveal from the start (for incorrect guesses)
+    revealedChars?: string; // actual revealed characters from the start of the word
 }
 
 export interface ChainesLogiqueGuessEntry {

@@ -137,15 +137,21 @@ export const ChainesLogiqueGameBoard: React.FC = () => {
                         <span style={{ letterSpacing: '0.1em' }}>{entry.word}</span>
                     ) : (
                         <span>
-                            {entry.firstLetter}
-                            {Array.from({ length: entry.length - 1 }).map((_, i) => (
-                                <span key={i} style={{
-                                    opacity: i < (revealedCount - 1) ? 1 : 0.3,
-                                    color: i < (revealedCount - 1) ? 'inherit' : 'var(--text-muted)'
-                                }}>
-                                    {i < (revealedCount - 1) ? entry.firstLetter.toLowerCase() : '_'}
-                                </span>
-                            ))}
+                            {Array.from({ length: entry.length }).map((_, i) => {
+                                // Use revealedChars if available, otherwise fall back to firstLetter for index 0
+                                const revealedChars = entry.revealedChars || entry.firstLetter;
+                                const isRevealed = i < revealedCount;
+                                const char = isRevealed && i < revealedChars.length ? revealedChars[i] : '_';
+                                return (
+                                    <span key={i} style={{
+                                        opacity: isRevealed ? 1 : 0.3,
+                                        color: isRevealed ? 'inherit' : 'var(--text-muted)',
+                                        letterSpacing: '0.05em'
+                                    }}>
+                                        {char}
+                                    </span>
+                                );
+                            })}
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
                                 ({entry.length} letters)
                             </span>

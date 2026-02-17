@@ -29,7 +29,7 @@ export class ChainesLogiqueGame {
     constructor(playerIds: PlayerId[], settings: RoomSettings, existingState?: ChainesLogiqueState) {
         this.chainesCount = getChainesCount(settings);
         const timerDuration = getTimerDuration(settings) * 1000; // Convert to milliseconds
-        
+
         if (existingState) {
             this.state = existingState;
             // full words are not in state; must be passed separately by room-manager
@@ -38,7 +38,7 @@ export class ChainesLogiqueGame {
             const principalWords: Record<PlayerId, string> = {};
             const secondaryWords: Record<PlayerId, ChaineWordEntry[]> = {};
             const revealedWords: Record<PlayerId, boolean[]> = {};
-            
+
             playerIds.forEach((id) => {
                 wordsSet[id] = false;
                 principalWords[id] = '';
@@ -49,7 +49,7 @@ export class ChainesLogiqueGame {
                 }));
                 revealedWords[id] = Array(this.chainesCount).fill(false);
             });
-            
+
             this.state = {
                 gameType: 'CHAINES_LOGIQUE',
                 playerIds,
@@ -95,47 +95,48 @@ export class ChainesLogiqueGame {
         if (this.state.wordsSet[playerId]) {
             throw new Error('Words already submitted');
         }
-        
+
         // Validate principal word
         if (!isValidWord(principalWord)) {
             throw new Error('Principal word must be 2-20 letters');
         }
-        
+
         // Validate secondary words count
         if (secondaryWords.length !== this.chainesCount) {
             throw new Error(`Must provide exactly ${this.chainesCount} secondary words`);
         }
-        
+
         // Validate each secondary word
         for (const word of secondaryWords) {
             if (!isValidWord(word)) {
                 throw new Error('Each secondary word must be 2-20 letters');
             }
         }
-        
+
         // Store principal word (revealed to both players)
         this.state.principalWords[playerId] = principalWord.toUpperCase();
-        
+
         // Store masked secondary words
         this.state.secondaryWords[playerId] = secondaryWords.map(word => ({
             firstLetter: word[0].toUpperCase(),
             length: word.length,
-            revealedLetters: 1
+            revealedLetters: 1,
+            revealedChars: word[0].toUpperCase()
         }));
-        
+
         // Store full words on server only
         this.fullWords[playerId] = secondaryWords.map(w => w.toUpperCase());
-        
+
         // Debug logging
         console.log('Words set for player', playerId, {
             principal: this.state.principalWords[playerId],
             secondary: this.fullWords[playerId],
             masked: this.state.secondaryWords[playerId]
         });
-        
+
         // Mark as set
         this.state.wordsSet[playerId] = true;
-        
+
         // Check if all players have set their words
         const allSet = this.state.playerIds.every((id) => this.state.wordsSet[id]);
         if (allSet) {
@@ -154,25 +155,25 @@ export class ChainesLogiqueGame {
         if (playerId !== currentPlayerId) {
             throw new Error('Not your turn');
         }
-        
+
         if (!isValidWord(word)) {
             throw new Error('Guess must be 2-20 letters');
         }
-        
+
         const guessUpper = word.toUpperCase();
-        
+
         // Find opponent
         const otherPlayerId = this.state.playerIds[1 - this.state.currentPlayerIndex];
         const targetWords = this.fullWords[otherPlayerId];
-        
+
         if (!targetWords) {
             throw new Error('Opponent words not set');
         }
-        
+
         // Check if word matches any unrevealed word
         let foundMatch = false;
         let matchedIndex = -1;
-        
+
         for (let i = 0; i < targetWords.length; i++) {
             if (!this.state.revealedWords[otherPlayerId][i] && targetWords[i] === guessUpper) {
                 foundMatch = true;
@@ -180,7 +181,7 @@ export class ChainesLogiqueGame {
                 break;
             }
         }
-        
+
         // Debug logging
         console.log('Guess validation:', {
             guess: guessUpper,
@@ -189,7 +190,7 @@ export class ChainesLogiqueGame {
             foundMatch,
             matchedIndex
         });
-        
+
         // Create guess entry
         const entry: ChainesLogiqueGuessEntry = {
             guesserId: playerId,
@@ -198,12 +199,12 @@ export class ChainesLogiqueGame {
             isCorrect: foundMatch
         };
         this.state.guessHistory.push(entry);
-        
+
         if (foundMatch) {
             // Correct guess - reveal the word
             this.state.revealedWords[otherPlayerId][matchedIndex] = true;
             this.state.secondaryWords[otherPlayerId][matchedIndex].word = guessUpper;
-            
+
             // Check win condition
             const allRevealed = this.state.revealedWords[otherPlayerId].every(Boolean);
             if (allRevealed) {
@@ -217,7 +218,7 @@ export class ChainesLogiqueGame {
             // Incorrect guess - reveal one more letter from the first unrevealed word and end turn
             const targetWordEntries = this.state.secondaryWords[otherPlayerId];
             const revealedStatus = this.state.revealedWords[otherPlayerId];
-            
+
             // Find the first unrevealed word to reveal more letters from
             let wordToRevealIndex = -1;
             for (let i = 0; i < revealedStatus.length; i++) {
@@ -226,23 +227,27 @@ export class ChainesLogiqueGame {
                     break;
                 }
             }
-            
+
             // Reveal one more letter if we found an unrevealed word
             if (wordToRevealIndex !== -1 && targetWordEntries[wordToRevealIndex]) {
                 const currentRevealed = targetWordEntries[wordToRevealIndex].revealedLetters || 1;
-                const targetWordLength = targetWords[wordToRevealIndex].length;
-                
+                const fullWord = targetWords[wordToRevealIndex];
+                const targetWordLength = fullWord.length;
+
                 // Reveal one more letter (up to the full word length)
                 if (currentRevealed < targetWordLength) {
-                    targetWordEntries[wordToRevealIndex].revealedLetters = currentRevealed + 1;
+                    const newRevealed = currentRevealed + 1;
+                    targetWordEntries[wordToRevealIndex].revealedLetters = newRevealed;
+                    // Store actual revealed characters so frontend shows correct letters
+                    targetWordEntries[wordToRevealIndex].revealedChars = fullWord.substring(0, newRevealed);
                 }
             }
-            
+
             // End turn
             this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.playerIds.length;
             this.state.turnStartTime = Date.now(); // Reset timer for next player
         }
-        
+
         return {
             isCorrect: foundMatch,
             targetId: otherPlayerId,
